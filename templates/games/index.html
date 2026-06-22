@@ -1,0 +1,291 @@
+{% extends 'base.html' %}
+{% block content %}
+<div id="mainView">
+    <div style="margin-bottom: 3rem;">
+        <i class="fa-solid fa-dice" style="font-size: 3rem; color: #a491bc;"></i>
+        <h1>뭐할게임?</h1>
+        <p class="subtitle">5명이서 할 거 없다고? 여기 있음 ㅋㅋ</p>
+    </div>
+
+    <div>
+        <button class="btn btn-yellow" onclick="showRecommendView()"><i class="fa-solid fa-dice-d20"></i> 게임 추천받기</button>
+        <button class="btn btn-red" onclick="openToolModal('penalty')"><i class="fa-solid fa-skull"></i> 벌칙 뽑기</button>
+        <button class="btn btn-brown" onclick="openToolModal('turn')"><i class="fa-solid fa-users"></i> 순서 정하기</button>
+    </div>
+</div>
+
+<div id="recommendView" style="display:none;">
+    <div style="margin-bottom: 2rem;">
+        <h2 style="color:var(--primary-color);">오늘 뭐하지?</h2>
+        <p class="subtitle">야 이거 재밌음 해봐 ㅋㅋ</p>
+    </div>
+
+    <div style="display:flex; justify-content:center; gap:20px; margin-bottom:20px;">
+        <div class="card" style="width:400px; text-align:left;">
+            <h3>🤖 상황 맞춤 AI 추천</h3>
+            <div style="display:flex; gap:10px;">
+                <input type="text" id="situationInput" class="input-field" placeholder="예: 초보자 4명이서 1시간 안에 끝낼 파티 게임" style="margin-bottom:0;">
+                <button class="btn btn-brown" style="margin:0; width:80px; padding:0;" onclick="getAIRecommend()">추천</button>
+            </div>
+            <div id="aiLoading" style="display:none; text-align:center; margin-top:10px;"><i class="fa-solid fa-spinner fa-spin"></i> AI가 고민 중...</div>
+            <div id="aiResultArea" style="margin-top:20px;"></div>
+        </div>
+
+        <div class="card" style="width:400px; text-align:left;">
+            <h3>🎯 조건 필터링 도감</h3>
+            <form id="filterForm">
+                <div style="display:flex; gap:10px; margin-bottom:10px;">
+                    <input type="number" id="fPlayers" placeholder="인원(명)" class="input-field" style="margin-bottom:0;">
+                    <input type="number" id="fTime" placeholder="시간(분 이하)" class="input-field" style="margin-bottom:0;">
+                    <select id="fDiff" class="input-field" style="margin-bottom:0;">
+                        <option value="">난이도 전체</option>
+                        <option value="easy">쉬움</option>
+                        <option value="medium">보통</option>
+                        <option value="hard">어려움</option>
+                    </select>
+                </div>
+            </form>
+            <div id="filterLoading" style="display:none; text-align:center;"><i class="fa-solid fa-spinner fa-spin"></i> 검색 중...</div>
+        </div>
+    </div>
+
+    <!-- Games List -->
+    <div id="gamesListArea" style="display:flex; flex-wrap:wrap; gap:20px; justify-content:center;">
+        {% for game in games %}
+            <div class="card" style="width:250px; cursor:pointer;" onclick="openGameModal({{ game.game_id }}, '{{ game.title|escapejs }}')">
+                <h4 style="margin:0 0 10px 0; color:var(--primary-color);">{{ game.title }}</h4>
+                <p style="margin:0; font-size:0.9rem; color:var(--text-light);">랭킹: {{ game.rank }}위</p>
+                <p style="margin:0; font-size:0.9rem; color:var(--text-light);">출시: {{ game.released_year }}</p>
+            </div>
+        {% endfor %}
+    </div>
+    
+    <div style="margin-top:2rem;">
+        <button class="btn btn-outline" onclick="hideRecommendView()">메인으로 돌아가기</button>
+    </div>
+</div>
+
+<!-- Game Detail Modal -->
+<div class="modal-overlay" id="gameDetailModal">
+    <div class="modal-content" style="max-width:800px;">
+        <span class="modal-close" onclick="closeGameDetail()">&times;</span>
+        <h2 id="gdTitle" style="color:var(--primary-color); margin-bottom:5px;"></h2>
+        <div id="gdLoading"><i class="fa-solid fa-spinner fa-spin"></i> 게임 정보를 불러오는 중...</div>
+        <div id="gdBody" style="display:none; text-align:left;">
+            <div style="display:flex; gap:20px; margin-top:20px;">
+                <div style="flex:1;">
+                    <div id="gdBasicInfo">
+                        <h4>기본 정보</h4>
+                        <p>인원: <span id="gdPlayers"></span>명</p>
+                        <p>시간: <span id="gdTime"></span>분</p>
+                        <p>난이도: <span id="gdWeight"></span> / 5.0</p>
+                    </div>
+                    
+                    <h4 style="margin-top:20px; color:var(--accent-color);">✨ AI 룰 요약</h4>
+                    <div id="gdAiRule" style="background:var(--box-bg); padding:10px; border-radius:8px; font-size:0.9rem;">
+                        <i class="fa-solid fa-spinner fa-spin"></i> 요약 중...
+                    </div>
+                </div>
+                <div style="flex:1;">
+                    <h4>유튜브 영상 (룰 가이드)</h4>
+                    <div id="gdYoutube" style="background:#000; width:100%; height:200px; border-radius:8px; display:flex; justify-content:center; align-items:center; color:#fff;">
+                        <i class="fa-solid fa-spinner fa-spin"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function showRecommendView() {
+        document.getElementById('mainView').style.display = 'none';
+        document.getElementById('recommendView').style.display = 'block';
+    }
+    function hideRecommendView() {
+        document.getElementById('mainView').style.display = 'block';
+        document.getElementById('recommendView').style.display = 'none';
+    }
+
+    // Filter Logic
+    const filterFormIds = ['fPlayers', 'fTime', 'fDiff'];
+    filterFormIds.forEach(id => {
+        document.getElementById(id).addEventListener('change', fetchFilteredGames);
+        document.getElementById(id).addEventListener('keyup', (e) => {
+            if(e.key === 'Enter') fetchFilteredGames();
+        });
+    });
+
+    function fetchFilteredGames() {
+        const p = document.getElementById('fPlayers').value;
+        const t = document.getElementById('fTime').value;
+        const d = document.getElementById('fDiff').value;
+        
+        document.getElementById('filterLoading').style.display = 'block';
+        
+        const params = new URLSearchParams();
+        if(p) params.append('players', p);
+        if(t) params.append('time', t);
+        if(d) params.append('difficulty', d);
+
+        fetch(`/boardgames/filter/?${params.toString()}`)
+        .then(res => res.json())
+        .then(data => {
+            document.getElementById('filterLoading').style.display = 'none';
+            const listArea = document.getElementById('gamesListArea');
+            listArea.innerHTML = '';
+            data.games.forEach(g => {
+                listArea.innerHTML += `
+                    <div class="card" style="width:250px; cursor:pointer;" onclick="openGameModal(${g.game_id}, '${g.title.replace(/'/g, "\\'")}')">
+                        <h4 style="margin:0 0 10px 0; color:var(--primary-color);">${g.title}</h4>
+                        <p style="margin:0; font-size:0.9rem; color:var(--text-light);">랭킹: ${g.rank}위</p>
+                        <p style="margin:0; font-size:0.9rem; color:var(--text-light);">출시: ${g.released_year}</p>
+                    </div>
+                `;
+            });
+        });
+    }
+
+    // AI Recommend
+    function getAIRecommend() {
+        const sit = document.getElementById('situationInput').value;
+        if(!sit) return alert('상황을 입력해주세요.');
+        
+        document.getElementById('aiLoading').style.display = 'block';
+        document.getElementById('aiResultArea').innerHTML = '';
+        
+        // Ensure CSRF token is available
+        const csrftoken = getCookie('csrftoken') || ''; 
+        
+        fetch(`/boardgames/recommend/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrftoken
+            },
+            body: JSON.stringify({situation: sit})
+        })
+        .then(res => res.json())
+        .then(data => {
+            document.getElementById('aiLoading').style.display = 'none';
+            if(data.error) {
+                document.getElementById('aiResultArea').innerHTML = `<p style="color:red;">오류: ${data.error}</p>`;
+                return;
+            }
+            let html = '';
+            data.recommendations.forEach(item => {
+                html += `
+                    <div style="background:var(--box-bg); padding:10px; margin-bottom:10px; border-radius:8px; cursor:pointer; transition:0.2s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'" onclick="openAiRecommendModal('${item.title.replace(/'/g, "\\'")}')">
+                        <strong style="color:var(--primary-color); text-decoration:underline;">${item.title}</strong><br>
+                        <span style="font-size:0.9rem; color:var(--text-light);">${item.reason}</span>
+                    </div>
+                `;
+            });
+            document.getElementById('aiResultArea').innerHTML = html;
+        });
+    }
+
+    // Game Detail Modal
+    function openGameModal(gameId, title) {
+        document.getElementById('gameDetailModal').style.display = 'flex';
+        document.getElementById('gdTitle').textContent = title;
+        document.getElementById('gdLoading').style.display = 'block';
+        document.getElementById('gdBody').style.display = 'none';
+        document.getElementById('gdAiRule').innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 요약 중...';
+        document.getElementById('gdYoutube').innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+
+        fetch(`/boardgames/api/${gameId}/details/`)
+        .then(res => {
+            if(res.status===404) throw new Error('Details not found');
+            return res.json();
+        })
+        .then(data => {
+            document.getElementById('gdBasicInfo').style.display = 'block';
+            document.getElementById('gdPlayers').textContent = `${data.min_players} ~ ${data.max_players}`;
+            document.getElementById('gdTime').textContent = data.playing_time;
+            document.getElementById('gdWeight').textContent = data.weight.toFixed(1);
+            document.getElementById('gdLoading').style.display = 'none';
+            document.getElementById('gdBody').style.display = 'block';
+            
+            fetchGameSmartGuide(gameId, title);
+        })
+        .catch(err => {
+            document.getElementById('gdLoading').innerHTML = '상세 정보가 데이터베이스에 없습니다.';
+        });
+    }
+
+    function closeGameDetail() {
+        document.getElementById('gameDetailModal').style.display = 'none';
+    }
+
+    function fetchGameSmartGuide(gameId, title) {
+        // This will call the recommend_game endpoint which we should setup to return AI rule summary & Youtube link
+        fetch(`/boardgames/${gameId}/recommend/`)
+        .then(res => res.json())
+        .then(data => {
+            if(data.summary) {
+                document.getElementById('gdAiRule').textContent = data.summary;
+            } else {
+                document.getElementById('gdAiRule').textContent = "요약을 불러오지 못했습니다.";
+            }
+            if(data.youtube_videoId) {
+                document.getElementById('gdYoutube').innerHTML = `
+                    <iframe width="100%" height="100%" src="https://www.youtube.com/embed/${data.youtube_videoId}" frameborder="0" allowfullscreen style="border-radius:8px;"></iframe>
+                `;
+            } else {
+                document.getElementById('gdYoutube').innerHTML = "영상 없음";
+            }
+        });
+    }
+
+    function openAiRecommendModal(title) {
+        document.getElementById('gameDetailModal').style.display = 'flex';
+        document.getElementById('gdTitle').textContent = title + " (AI 추천)";
+        document.getElementById('gdLoading').style.display = 'block';
+        document.getElementById('gdBody').style.display = 'none';
+        document.getElementById('gdAiRule').innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 친절한 룰 생성 중...';
+        document.getElementById('gdYoutube').innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+        
+        // Hide basic info since we don't have DB details
+        document.getElementById('gdBasicInfo').style.display = 'none';
+
+        fetch(`/boardgames/api/details_by_title/?title=${encodeURIComponent(title)}`)
+        .then(res => res.json())
+        .then(data => {
+            document.getElementById('gdLoading').style.display = 'none';
+            document.getElementById('gdBody').style.display = 'block';
+            
+            if(data.ai_summary) {
+                document.getElementById('gdAiRule').innerHTML = data.ai_summary.replace(/\n/g, '<br>');
+            } else {
+                document.getElementById('gdAiRule').textContent = "요약을 불러오지 못했습니다.";
+            }
+            if(data.youtube_videoId) {
+                document.getElementById('gdYoutube').innerHTML = `
+                    <iframe width="100%" height="100%" src="https://www.youtube.com/embed/${data.youtube_videoId}" frameborder="0" allowfullscreen style="border-radius:8px;"></iframe>
+                `;
+            } else {
+                document.getElementById('gdYoutube').innerHTML = "영상 없음";
+            }
+        })
+        .catch(err => {
+            document.getElementById('gdLoading').innerHTML = '정보를 가져오는데 실패했습니다.';
+        });
+    }
+
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+</script>
+{% endblock %}

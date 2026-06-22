@@ -1,0 +1,18 @@
+{% extends 'base.html' %}
+{% block content %}
+<section class="auth-page">
+    <div class="card auth-card">
+        <div class="auth-icon"><i class="fa-solid fa-dice"></i></div>
+        <h2>로그인</h2>
+        <p class="auth-subtitle">다시 만나서 반가워요.</p>
+
+        <form action="{% url 'accounts:login' %}" method="POST" class="auth-form">
+            {% csrf_token %}
+            {{ form.as_p }}
+            <button type="submit" class="btn btn-brown auth-submit">로그인</button>
+        </form>
+
+        <a class="auth-link" href="{% url 'accounts:signup' %}">아직 계정이 없나요?</a>
+    </div>
+</section>
+{% endblock %}

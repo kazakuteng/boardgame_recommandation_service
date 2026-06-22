@@ -1,0 +1,291 @@
+:root {
+  --primary-color: #5d3f2e;
+  --secondary-color: #e0ac5f;
+  --accent-color: #c45b4c;
+  --bg-color: #fbf9f6;
+  --box-bg: #f5f0e6;
+  --text-dark: #332d28;
+  --text-light: #7b736a;
+}
+
+body {
+  margin: 0;
+  font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  background-color: var(--bg-color);
+  color: var(--text-dark);
+  background-image: radial-gradient(#e0ddd8 1px, transparent 1px);
+  background-size: 30px 30px;
+}
+
+.navbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 3rem;
+  background-color: var(--bg-color);
+  border-bottom: 2px solid #eadecc;
+  gap: 1rem;
+}
+
+.navbar-brand {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--primary-color);
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.navbar-links {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.navbar-links a,
+.navbar-links button {
+  text-decoration: none;
+  color: var(--text-light);
+  font-weight: 600;
+  padding: 0 0 5px;
+  transition: all 0.2s;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  font-size: 1rem;
+}
+
+.navbar-links a:hover,
+.navbar-links a.active,
+.navbar-links button:hover {
+  color: var(--accent-color);
+  border-bottom: 3px solid var(--accent-color);
+}
+
+.container {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+  text-align: center;
+}
+
+h1 {
+  font-size: 4rem;
+  color: var(--primary-color);
+  margin-bottom: 10px;
+}
+
+.subtitle {
+  color: var(--text-light);
+  font-size: 1.1rem;
+  font-weight: 500;
+  background: var(--box-bg);
+  display: inline-block;
+  padding: 5px 15px;
+  border-radius: 20px;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 1rem 2rem;
+  border-radius: 12px;
+  font-size: 1.2rem;
+  font-weight: 700;
+  border: none;
+  cursor: pointer;
+  margin: 10px;
+  width: 100%;
+  max-width: 350px;
+  transition: transform 0.1s;
+  text-decoration: none;
+  color: white;
+}
+
+.btn:active {
+  transform: scale(0.98);
+}
+
+.btn-yellow {
+  background-color: var(--secondary-color);
+  color: #fff;
+  box-shadow: 0 4px 0 #c28c40;
+}
+
+.btn-red {
+  background-color: var(--accent-color);
+  color: #fff;
+  box-shadow: 0 4px 0 #9c3f32;
+}
+
+.btn-brown {
+  background-color: var(--primary-color);
+  color: #fff;
+  box-shadow: 0 4px 0 #3d271a;
+}
+
+.btn-outline {
+  background-color: transparent;
+  color: var(--text-light);
+  border: 2px solid var(--text-light);
+}
+
+.card {
+  background-color: #fff;
+  border-radius: 16px;
+  padding: 2rem;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+  border: 4px solid var(--box-bg);
+}
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: var(--bg-color);
+  padding: 2rem;
+  border-radius: 24px;
+  max-width: 500px;
+  width: 90%;
+  max-height: 90vh;
+  overflow: auto;
+  text-align: center;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
+  border: 5px solid #fff;
+  position: relative;
+}
+
+.modal-content.wide {
+  max-width: 800px;
+}
+
+.modal-close {
+  position: absolute;
+  top: 15px;
+  right: 20px;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: var(--text-light);
+  background: none;
+  border: 0;
+}
+
+.input-field {
+  width: 100%;
+  padding: 1rem;
+  border: 2px solid var(--box-bg);
+  border-radius: 12px;
+  font-size: 1rem;
+  box-sizing: border-box;
+  background-color: #fff;
+  margin-bottom: 1rem;
+}
+
+.hero-actions,
+.panels,
+.games-grid,
+.detail-grid,
+.filter-row,
+.ai-row,
+.tool-tabs {
+  display: flex;
+  gap: 20px;
+}
+
+.hero-actions,
+.games-grid {
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.panels {
+  justify-content: center;
+  margin-bottom: 20px;
+}
+
+.panel {
+  width: 400px;
+  text-align: left;
+}
+
+.game-card {
+  width: 250px;
+  cursor: pointer;
+}
+
+.game-card h4 {
+  margin: 0 0 10px;
+  color: var(--primary-color);
+}
+
+.game-card p {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--text-light);
+}
+
+.ai-item {
+  background: var(--box-bg);
+  padding: 10px;
+  margin-bottom: 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.ai-item:hover {
+  transform: scale(1.02);
+}
+
+.tool-result {
+  margin: 20px 0;
+  background: var(--box-bg);
+  border: none;
+  cursor: pointer;
+}
+
+.youtube-box {
+  background: #000;
+  width: 100%;
+  height: 200px;
+  border-radius: 8px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: #fff;
+}
+
+@media (max-width: 820px) {
+  .navbar {
+    padding: 1rem;
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  h1 {
+    font-size: 2.8rem;
+  }
+
+  .panels,
+  .detail-grid,
+  .filter-row,
+  .ai-row {
+    flex-direction: column;
+  }
+
+  .panel,
+  .game-card {
+    width: auto;
+  }
+}

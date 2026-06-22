@@ -1,0 +1,99 @@
+{% extends 'base.html' %}
+{% block content %}
+<section class="page-header">
+    <h2>낙서장</h2>
+    <p class="subtitle">보드게임 이야기를 가볍게 남겨보세요.</p>
+</section>
+
+<section class="card community-compose">
+    <form action="{% url 'community:create' %}" method="POST" class="compose-form">
+        {% csrf_token %}
+        <input type="text" name="content" class="input-field" placeholder="오늘 게임 어땠나요?" required>
+        <button type="submit" class="btn btn-yellow compose-submit">
+            <i class="fa-regular fa-paper-plane"></i> 등록
+        </button>
+    </form>
+</section>
+
+<section class="note-grid">
+    {% for article in articles %}
+    <article class="card note-card note-color-{% cycle 'red' 'yellow' 'blue' 'green' %}">
+        <div class="note-author">
+            <i class="fa-solid fa-user-astronaut"></i>
+            <a href="{% url 'accounts:profile' article.user.pk %}">{{ article.user.username }}</a>
+        </div>
+
+        {% if user == article.user %}
+        <div class="note-actions">
+            <a href="{% url 'community:update' article.pk %}" aria-label="수정"><i class="fa-solid fa-pen"></i></a>
+            <form action="{% url 'community:delete' article.pk %}" method="POST">
+                {% csrf_token %}
+                <button type="submit" aria-label="삭제"><i class="fa-solid fa-trash"></i></button>
+            </form>
+        </div>
+        {% endif %}
+
+        <p class="note-content">{{ article.content }}</p>
+
+        <div class="note-like">
+            {% if user.is_authenticated %}
+            <form class="like-forms" data-article-id="{{ article.pk }}">
+                {% csrf_token %}
+                <button type="submit">
+                    {% if user in article.like_users.all %}
+                        <i class="fa-solid fa-heart" id="like-icon-{{ article.pk }}"></i>
+                    {% else %}
+                        <i class="fa-regular fa-heart" id="like-icon-{{ article.pk }}"></i>
+                    {% endif %}
+                    <span id="like-count-{{ article.pk }}">{{ article.like_users.all|length }}</span>
+                </button>
+            </form>
+            {% else %}
+                <span><i class="fa-solid fa-heart"></i> {{ article.like_users.all|length }}</span>
+            {% endif %}
+        </div>
+    </article>
+    {% empty %}
+    <div class="card empty-note">아직 낙서가 없습니다.</div>
+    {% endfor %}
+</section>
+
+<script>
+    const likeForms = document.querySelectorAll('.like-forms')
+
+    likeForms.forEach((form) => {
+        form.addEventListener('submit', function (event) {
+            event.preventDefault()
+            const articleId = event.target.dataset.articleId
+            const csrftoken = form.querySelector('[name=csrfmiddlewaretoken]').value
+
+            fetch(`/community/${articleId}/likes/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': csrftoken,
+                }
+            })
+            .then(response => {
+                if(!response.ok) throw new Error('Request failed');
+                return response.json();
+            })
+            .then(data => {
+                const likeIcon = document.querySelector(`#like-icon-${articleId}`)
+                const likeCount = document.querySelector(`#like-count-${articleId}`)
+
+                if (data.is_liked) {
+                    likeIcon.classList.remove('fa-regular')
+                    likeIcon.classList.add('fa-solid')
+                } else {
+                    likeIcon.classList.remove('fa-solid')
+                    likeIcon.classList.add('fa-regular')
+                }
+                likeCount.textContent = data.like_count
+            })
+            .catch(error => {
+                console.error(error);
+            })
+        })
+    })
+</script>
+{% endblock %}

@@ -1,0 +1,11 @@
+asgiref==3.9.1
+Django==5.2.5
+sqlparse==0.5.3
+tzdata==2025.2
+typing_extensions==4.12.2
+djangorestframework==3.16.1
+requests==2.32.4
+python-dotenv==1.1.1
+google-generativeai==0.8.6
+google-api-python-client==2.193.0
+django-environ==0.13.0

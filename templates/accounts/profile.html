@@ -1,0 +1,68 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="card" style="max-width: 600px; margin: 0 auto;">
+    <h2 style="color:var(--primary-color);">{{ person.username }}님의 프로필</h2>
+    
+    <div style="display:flex; justify-content:space-around; margin: 2rem 0;">
+        <div>
+            <div style="font-size:2rem; font-weight:bold; color:var(--text-dark);" id="followersCount">{{ person.followers.all|length }}</div>
+            <div style="color:var(--text-light);">팔로워</div>
+        </div>
+        <div>
+            <div style="font-size:2rem; font-weight:bold; color:var(--text-dark);" id="followingsCount">{{ person.followings.all|length }}</div>
+            <div style="color:var(--text-light);">팔로잉</div>
+        </div>
+    </div>
+
+    {% if user.is_authenticated and user != person %}
+    <form id="followForm" data-user-id="{{ person.pk }}">
+        {% csrf_token %}
+        <button type="submit" id="followBtn" class="btn {% if user in person.followers.all %}btn-outline{% else %}btn-brown{% endif %}">
+            {% if user in person.followers.all %}언팔로우{% else %}팔로우{% endif %}
+        </button>
+    </form>
+    {% endif %}
+</div>
+
+<script>
+    const form = document.querySelector('#followForm')
+    if (form) {
+        form.addEventListener('submit', function (event) {
+            event.preventDefault()
+            const userId = event.target.dataset.userId
+            const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value
+
+            fetch(`/accounts/${userId}/follow/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': csrftoken,
+                }
+            })
+            .then(response => {
+                if(!response.ok) throw new Error('Request failed');
+                return response.json();
+            })
+            .then(data => {
+                const followBtn = document.querySelector('#followBtn')
+                const followersCount = document.querySelector('#followersCount')
+                const followingsCount = document.querySelector('#followingsCount')
+
+                if (data.is_followed) {
+                    followBtn.textContent = '언팔로우'
+                    followBtn.className = 'btn btn-outline'
+                } else {
+                    followBtn.textContent = '팔로우'
+                    followBtn.className = 'btn btn-brown'
+                }
+
+                followersCount.textContent = data.followers_count
+                followingsCount.textContent = data.followings_count
+            })
+            .catch(error => {
+                console.error(error);
+                alert("오류가 발생했습니다.");
+            })
+        })
+    }
+</script>
+{% endblock %}
