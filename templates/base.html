@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>뭐할게임?</title>
     {% load static %}
-    <link rel="stylesheet" href="{% static 'css/style.css' %}?v=3">
+    <link rel="stylesheet" href="{% static 'css/style.css' %}?v=4">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 </head>
 <body>
@@ -21,9 +21,9 @@
             
             {% if user.is_authenticated %}
                 <a href="{% url 'accounts:profile' user.pk %}"><i class="fa-regular fa-user"></i> {{ user.username }}</a>
-                <form action="{% url 'accounts:logout' %}" method="post" style="display:inline;">
+                <form action="{% url 'accounts:logout' %}" method="post" class="navbar-logout-form">
                     {% csrf_token %}
-                    <button type="submit" style="background:none; border:none; color:var(--text-light); font-weight:600; cursor:pointer; font-size:1rem; margin-left:1rem;">로그아웃</button>
+                    <button type="submit">로그아웃</button>
                 </form>
             {% else %}
                 <a href="{% url 'accounts:login' %}">로그인</a>
