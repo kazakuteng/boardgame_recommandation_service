@@ -337,6 +337,28 @@ h1 {
   height: 100%;
   object-fit: cover;
 }
+.profile-image-editor {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  border: 2px solid var(--box-bg);
+  border-radius: 16px;
+  background: #fff;
+}
+.profile-avatar-preview {
+  width: 84px;
+  height: 84px;
+  border-radius: 20px;
+}
+.profile-image-input {
+  width: 100%;
+  padding: 0.75rem;
+  border: 2px dashed #eadecc;
+  border-radius: 12px;
+  background: var(--bg-color);
+  box-sizing: border-box;
+}
 .profile-title h2,
 .settings-card h2,
 .settings-card h3,
@@ -451,8 +473,28 @@ h1 {
   display: flex;
   gap: 6px;
   align-items: center;
+  min-height: 38px;
+  padding: 0.45rem 0.55rem;
+  border-radius: 10px;
+  background: var(--bg-color);
   margin: 0;
   font-size: 0.92rem;
+  cursor: pointer;
+}
+.favorite-select-grid label:has(input:checked) {
+  background: #fff0ee;
+  color: var(--accent-color);
+  font-weight: 800;
+}
+.favorite-select-grid input {
+  accent-color: var(--accent-color);
+}
+.favorite-empty {
+  margin: 0;
+  padding: 1rem;
+  border: 2px dashed #eadecc;
+  border-radius: 14px;
+  background: #fff;
 }
 .settings-form {
   display: grid;

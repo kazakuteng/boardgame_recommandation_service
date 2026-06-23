@@ -84,14 +84,14 @@ class ProfileUpdateForm(forms.ModelForm):
             'profile_image': '프로필 사진',
         }
         widgets = {
-            'profile_image': forms.ClearableFileInput(attrs={'accept': 'image/*'}),
+            'profile_image': forms.FileInput(attrs={'accept': 'image/*', 'class': 'profile-image-input'}),
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields['profile_image'].required = False
         self.fields['profile_image'].help_text = '이미지 파일을 선택해주세요.'
-        self.fields['favorite_games'].queryset = BoardGames.objects.order_by('rank')[:120]
+        self.fields['favorite_games'].queryset = BoardGames.objects.order_by('rank')
         self.fields['favorite_games'].help_text = '최대 10개까지 선택할 수 있어요.'
 
     def clean_favorite_games(self):

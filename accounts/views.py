@@ -66,7 +66,10 @@ def profile_edit(request):
             return redirect('accounts:profile', request.user.pk)
     else:
         form = ProfileUpdateForm(instance=request.user)
-    context = {'form': form}
+    context = {
+        'form': form,
+        'has_favorite_choices': form.fields['favorite_games'].queryset.exists(),
+    }
     return render(request, 'accounts/profile_edit.html', context)
 
 @login_required

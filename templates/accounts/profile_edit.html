@@ -13,7 +13,19 @@
 
             <div class="auth-field">
                 <label for="{{ form.profile_image.id_for_label }}">프로필 사진</label>
-                {{ form.profile_image }}
+                <div class="profile-image-editor">
+                    <div class="profile-avatar profile-avatar-preview">
+                        {% if user.profile_image %}
+                            <img src="{{ user.profile_image.url }}" alt="현재 프로필 사진">
+                        {% else %}
+                            <span>{{ user.username|first|upper }}</span>
+                        {% endif %}
+                    </div>
+                    <div>
+                        {{ form.profile_image }}
+                        <p class="profile-note">새 이미지를 선택한 뒤 저장하면 프로필에 반영돼요.</p>
+                    </div>
+                </div>
                 {% if form.profile_image.errors %}
                     <div class="form-errors">{{ form.profile_image.errors }}</div>
                 {% endif %}
@@ -21,10 +33,14 @@
 
             <div class="auth-field">
                 <label>최애 보드게임</label>
-                <p class="profile-note">최대 10개까지 선택할 수 있어요.</p>
-                <div class="favorite-select-grid">
-                    {{ form.favorite_games }}
-                </div>
+                <p class="profile-note">최대 10개까지 선택할 수 있어요. 선택한 게임은 프로필에 태그로 표시돼요.</p>
+                {% if has_favorite_choices %}
+                    <div class="favorite-select-grid">
+                        {{ form.favorite_games }}
+                    </div>
+                {% else %}
+                    <p class="empty-profile-text favorite-empty">아직 등록된 보드게임 데이터가 없어 선택할 수 없습니다.</p>
+                {% endif %}
                 {% if form.favorite_games.errors %}
                     <div class="form-errors">{{ form.favorite_games.errors }}</div>
                 {% endif %}
@@ -35,4 +51,19 @@
         </form>
     </div>
 </section>
+
+<script>
+    const favoriteInputs = document.querySelectorAll('.favorite-select-grid input[type="checkbox"]')
+    const maxFavorites = 10
+
+    favoriteInputs.forEach((input) => {
+        input.addEventListener('change', () => {
+            const checkedCount = document.querySelectorAll('.favorite-select-grid input[type="checkbox"]:checked').length
+            if (checkedCount > maxFavorites) {
+                input.checked = false
+                alert('최애 보드게임은 최대 10개까지 선택할 수 있어요.')
+            }
+        })
+    })
+</script>
 {% endblock %}
