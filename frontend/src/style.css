@@ -44,6 +44,11 @@ body {
   gap: 1rem;
 }
 
+.navbar-logout-form {
+  margin: 0;
+  display: inline-flex;
+}
+
 .navbar-links a,
 .navbar-links button {
   text-decoration: none;
@@ -501,12 +506,12 @@ h1 {
   align-items: center;
   justify-content: center;
   gap: 5px;
-  padding: 0.55rem 0.35rem;
+  padding: 0.38rem 0.28rem;
   border: 2px solid rgba(196, 91, 76, 0.18);
-  border-radius: 10px;
+  border-radius: 8px;
   background: #fff0ee;
   color: var(--accent-color);
-  font-size: 0.86rem;
+  font-size: 0.76rem;
   font-weight: 900;
   cursor: pointer;
   transition: transform 0.15s ease, box-shadow 0.15s ease;
@@ -549,10 +554,11 @@ h1 {
 
 .ladder-bottom span {
   min-width: 0;
-  padding: 0.55rem 0.35rem;
-  border-radius: 10px;
+  padding: 0.38rem 0.28rem;
+  border-radius: 8px;
   background: var(--box-bg);
   color: var(--text-light);
+  font-size: 0.82rem;
   font-weight: 900;
   text-align: center;
   overflow: hidden;

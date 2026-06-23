@@ -1,0 +1,38 @@
+{% extends 'base.html' %}
+{% block content %}
+<section class="auth-page">
+    <div class="card profile-edit-card">
+        <h2>프로필 꾸미기</h2>
+        <p class="auth-subtitle">프로필 사진과 최애 보드게임을 설정해요.</p>
+
+        <form action="{% url 'accounts:profile_edit' %}" method="POST" enctype="multipart/form-data" class="auth-form">
+            {% csrf_token %}
+            {% if form.non_field_errors %}
+                <div class="form-errors">{{ form.non_field_errors }}</div>
+            {% endif %}
+
+            <div class="auth-field">
+                <label for="{{ form.profile_image.id_for_label }}">프로필 사진</label>
+                {{ form.profile_image }}
+                {% if form.profile_image.errors %}
+                    <div class="form-errors">{{ form.profile_image.errors }}</div>
+                {% endif %}
+            </div>
+
+            <div class="auth-field">
+                <label>최애 보드게임</label>
+                <p class="profile-note">최대 10개까지 선택할 수 있어요.</p>
+                <div class="favorite-select-grid">
+                    {{ form.favorite_games }}
+                </div>
+                {% if form.favorite_games.errors %}
+                    <div class="form-errors">{{ form.favorite_games.errors }}</div>
+                {% endif %}
+            </div>
+
+            <button type="submit" class="btn btn-yellow auth-submit">저장하기</button>
+            <a href="{% url 'accounts:profile' user.pk %}" class="auth-link">프로필로 돌아가기</a>
+        </form>
+    </div>
+</section>
+{% endblock %}
