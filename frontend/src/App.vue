@@ -351,10 +351,10 @@ const wheelColors = ['#c45b4c', '#e0ac5f', '#5d3f2e', '#6e9f84', '#6f88b8', '#a4
 const ladderHeight = 260
 const ladderMargin = 30
 const wheelItems = ref([
-  { id: 1, label: '설거지 하기', probability: 25, color: wheelColors[0] },
-  { id: 2, label: '음료수 사기', probability: 25, color: wheelColors[1] },
+  { id: 1, label: '꿀밤 맞기', probability: 25, color: wheelColors[0] },
+  { id: 2, label: '커피 사기', probability: 25, color: wheelColors[1] },
   { id: 3, label: '뒷정리 하기', probability: 20, color: wheelColors[2] },
-  { id: 4, label: '한 턴 쉬기', probability: 15, color: wheelColors[3] },
+  { id: 4, label: '10분간 말 못하기', probability: 15, color: wheelColors[3] },
   { id: 5, label: '무사 통과', probability: 15, color: wheelColors[4], isAuto: true }
 ])
 let nextWheelId = 6
