@@ -1,7 +1,6 @@
 from django import forms
 from django.contrib.auth.forms import AuthenticationForm, UserChangeForm, UserCreationForm
 from django.contrib.auth import get_user_model
-from games.models import BoardGames
 
 User = get_user_model()
 
@@ -70,16 +69,22 @@ class CustomUserCreationForm(UserCreationForm):
 
 
 class ProfileUpdateForm(forms.ModelForm):
-    favorite_games = forms.ModelMultipleChoiceField(
-        queryset=BoardGames.objects.none(),
+    favorite_game_tags = forms.CharField(
         required=False,
-        widget=forms.CheckboxSelectMultiple,
-        label='최애 보드게임',
+        label='최애 보드게임 태그',
+        help_text='최대 10개까지 입력할 수 있어요.',
+        widget=forms.TextInput(
+            attrs={
+                'placeholder': '#스플렌더 #루미큐브 #카탄',
+                'class': 'tag-input',
+                'autocomplete': 'off',
+            }
+        ),
     )
 
     class Meta:
         model = User
-        fields = ('profile_image', 'favorite_games')
+        fields = ('profile_image', 'favorite_game_tags')
         labels = {
             'profile_image': '프로필 사진',
         }
@@ -91,14 +96,27 @@ class ProfileUpdateForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.fields['profile_image'].required = False
         self.fields['profile_image'].help_text = '이미지 파일을 선택해주세요.'
-        self.fields['favorite_games'].queryset = BoardGames.objects.order_by('rank')
-        self.fields['favorite_games'].help_text = '최대 10개까지 선택할 수 있어요.'
+        if self.instance and self.instance.favorite_game_tags:
+            tags = self.instance.favorite_game_tag_list
+            self.initial['favorite_game_tags'] = ' '.join(f'#{tag}' for tag in tags)
 
-    def clean_favorite_games(self):
-        games = self.cleaned_data.get('favorite_games')
-        if games and games.count() > 10:
-            raise forms.ValidationError('최애 보드게임은 최대 10개까지 선택할 수 있어요.')
-        return games
+    def clean_favorite_game_tags(self):
+        raw_tags = self.cleaned_data.get('favorite_game_tags', '')
+        pieces = raw_tags.replace(',', ' ').split()
+        tags = []
+
+        for piece in pieces:
+            tag = piece.strip().lstrip('#').strip()
+            if not tag:
+                continue
+            if len(tag) > 30:
+                raise forms.ValidationError('태그 하나는 30자 이하로 입력해주세요.')
+            if tag not in tags:
+                tags.append(tag)
+
+        if len(tags) > 10:
+            raise forms.ValidationError('최애 보드게임 태그는 최대 10개까지 입력할 수 있어요.')
+        return ','.join(tags)
 
     def clean_profile_image(self):
         image = self.cleaned_data.get('profile_image')

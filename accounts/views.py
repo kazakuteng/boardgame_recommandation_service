@@ -68,7 +68,6 @@ def profile_edit(request):
         form = ProfileUpdateForm(instance=request.user)
     context = {
         'form': form,
-        'has_favorite_choices': form.fields['favorite_games'].queryset.exists(),
     }
     return render(request, 'accounts/profile_edit.html', context)
 

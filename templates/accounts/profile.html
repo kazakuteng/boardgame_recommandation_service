@@ -48,18 +48,14 @@
 
     <div class="card profile-section">
         <h3>최애 보드게임</h3>
-        {% if person.favorite_games.all %}
+        {% if person.favorite_game_tag_list %}
             <div class="favorite-game-list">
-                {% for game in person.favorite_games.all %}
-                    <span class="favorite-game-chip">
-                        <span class="game-thumb">{{ game.title|first|upper }}</span>
-                        <span>{{ game.title }}</span>
-                    </span>
+                {% for tag in person.favorite_game_tag_list %}
+                    <span class="favorite-game-chip hashtag-chip">#{{ tag }}</span>
                 {% endfor %}
             </div>
-            <p class="profile-note">현재 보드게임 이미지 URL이 DB에 없어 글자 썸네일로 표시돼요.</p>
         {% else %}
-            <p class="empty-profile-text">아직 등록한 최애 보드게임이 없습니다.</p>
+            <p class="empty-profile-text">아직 등록한 최애 보드게임 태그가 없습니다.</p>
         {% endif %}
     </div>
 
