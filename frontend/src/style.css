@@ -202,8 +202,7 @@ h1 {
 .games-grid,
 .detail-grid,
 .filter-row,
-.ai-row,
-.tool-tabs {
+.ai-row {
   display: flex;
   gap: 20px;
 }
@@ -268,30 +267,6 @@ h1 {
 .tool-subtitle {
   margin: 0 0 1.25rem;
   color: var(--text-light);
-}
-
-.tool-tabs {
-  justify-content: center;
-  margin-bottom: 1rem;
-}
-
-.tool-tab {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 0.55rem 0.25rem;
-  border: 0;
-  border-bottom: 3px solid transparent;
-  background: transparent;
-  color: var(--text-light);
-  font-size: 1rem;
-  font-weight: 800;
-  cursor: pointer;
-}
-
-.tool-tab.active {
-  color: var(--accent-color);
-  border-bottom-color: var(--accent-color);
 }
 
 .wheel-layout {

@@ -109,14 +109,6 @@
   <div v-if="toolModal" class="modal-overlay" @click.self="closeToolModal">
     <div class="modal-content tool-modal">
       <button class="modal-close" type="button" @click="closeToolModal">&times;</button>
-      <div class="tool-tabs">
-        <button class="tool-tab" :class="{ active: toolModal === 'penalty' }" @click="openToolModal('penalty')">
-          <i class="fa-solid fa-circle-exclamation"></i> 벌칙
-        </button>
-        <button class="tool-tab" :class="{ active: toolModal === 'turn' }" @click="openToolModal('turn')">
-          <i class="fa-solid fa-route"></i> 순서
-        </button>
-      </div>
 
       <template v-if="toolModal === 'penalty'">
         <h2 class="tool-title">벌칙 원판</h2>
