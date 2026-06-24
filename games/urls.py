@@ -8,6 +8,7 @@ urlpatterns = [
     path('api/<int:game_id>/details/', views.boardgame_detail, name='api_boardgame_detail'),
     path('api/details_by_title/', views.details_by_title, name='api_details_by_title'),
     path('api/top/', views.top_boardgame, name='api_top_boardgame'),
+    path('api/trending/', views.trending_boardgames, name='api_trending_boardgames'),
     
     # HTML & AJAX routes
     path('', views.index, name='index'),
