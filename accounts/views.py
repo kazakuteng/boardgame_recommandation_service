@@ -9,6 +9,7 @@ from django.contrib.auth import login as auth_login
 from django.contrib.auth import logout as auth_logout
 from django.contrib.auth import update_session_auth_hash
 from community.models import Article
+from games.models import RecommendationFeedback
 from .forms import AccountUpdateForm, CustomAuthenticationForm, CustomUserCreationForm, ProfileUpdateForm
 
 def login(request):
@@ -50,9 +51,11 @@ def profile(request, user_pk):
     User = get_user_model()
     person = get_object_or_404(User, pk=user_pk)
     articles = Article.objects.filter(user=person).order_by('-created_at')
+    recommendation_feedbacks = RecommendationFeedback.objects.filter(user=person).order_by('-created_at')
     context = {
         'person': person,
         'articles': articles,
+        'recommendation_feedbacks': recommendation_feedbacks,
         'is_owner': request.user.is_authenticated and request.user == person,
     }
     return render(request, 'accounts/profile.html', context)

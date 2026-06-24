@@ -6,7 +6,7 @@ from django.http import JsonResponse
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
-from .models import BoardGames, GameDetails
+from .models import BoardGames, GameDetails, RecommendationFeedback
 from .serializers import BoardGamesSerializer, GameDetailsSerializer
 from django.conf import settings
 from googleapiclient.discovery import build
@@ -224,6 +224,51 @@ def situation_recommend(request):
         return JsonResponse({'recommendations': result})
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
+
+
+@api_view(['POST'])
+def recommendation_feedback(request):
+    if not request.user.is_authenticated:
+        return JsonResponse({'status': 'error', 'message': '로그인이 필요합니다.'}, status=401)
+
+    data = request.data
+    game_title = str(data.get('game_title', '')).strip()
+    if not game_title:
+        return JsonResponse({'status': 'error', 'message': '게임 제목이 없습니다.'}, status=400)
+
+    rating = data.get('rating')
+    player_count = data.get('player_count')
+
+    try:
+        rating = int(rating) if rating not in [None, ''] else None
+    except (TypeError, ValueError):
+        return JsonResponse({'status': 'error', 'message': '별점은 숫자로 입력해주세요.'}, status=400)
+
+    if rating is not None and not 1 <= rating <= 5:
+        return JsonResponse({'status': 'error', 'message': '별점은 1~5점만 가능합니다.'}, status=400)
+
+    try:
+        player_count = int(player_count) if player_count not in [None, ''] else None
+    except (TypeError, ValueError):
+        return JsonResponse({'status': 'error', 'message': '인원수는 숫자로 입력해주세요.'}, status=400)
+
+    boardgame = BoardGames.objects.filter(title=game_title).first()
+    feedback = RecommendationFeedback.objects.create(
+        user=request.user,
+        boardgame=boardgame,
+        game_title=game_title,
+        situation=str(data.get('situation', '')).strip(),
+        recommendation_reason=str(data.get('recommendation_reason', '')).strip(),
+        rating=rating,
+        player_count=player_count,
+        review=str(data.get('review', '')).strip(),
+    )
+
+    return JsonResponse({
+        'status': 'success',
+        'feedback_id': feedback.pk,
+        'message': '리뷰가 저장되었습니다.',
+    })
 
 
 @api_view(['GET'])
