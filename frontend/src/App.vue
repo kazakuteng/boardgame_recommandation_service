@@ -64,60 +64,119 @@
             <div style="margin-top: 10px; font-size: 0.8rem; color: #999;">※ 버그는 컨셉입니다.</div>
           </div>
 
-          <div class="hero-actions" style="position: relative; display: flex; flex-direction: column; align-items: center; gap: 1rem;">
-            <button class="btn btn-yellow" @click="showAiRecommend" style="padding: 1.5rem 2rem; font-size: 1.2rem; width: 100%; max-width: 400px;">
-              <i class="fa-solid fa-robot"></i> AI 상황 맞춤 추천
-            </button>
-
-            <button class="btn btn-blue" @click="showFilterSearch" style="padding: 1.5rem 2rem; font-size: 1.2rem; width: 100%; max-width: 400px;">
-              <i class="fa-solid fa-filter"></i> 조건 필터로 직접 찾기
-            </button>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <section v-else-if="view === 'ai_recommend'">
-      <div style="display: flex; align-items: flex-end; justify-content: space-between; border-bottom: 2px solid var(--box-bg); padding-bottom: 0.8rem; margin-bottom: 1.5rem;">
-        <div style="display: flex; align-items: baseline; gap: 12px;">
-          <h2 style="font-size: 1.8rem; color: var(--primary-color); margin: 0;">
-            <i class="fa-solid fa-robot" style="color: var(--secondary-color);"></i> AI 맞춤 추천
-          </h2>
-          <span style="color: var(--text-light); font-size: 0.95rem;">상황을 알려주시면 가장 완벽한 게임을 찾아드려요</span>
-        </div>
-        <button @click="showMain" style="background: none; border: none; font-size: 1rem; color: var(--text-light); cursor: pointer; padding: 0; display: flex; align-items: center; gap: 5px;">
-          <i class="fa-solid fa-arrow-left"></i> 메인으로
+      <div class="hero-actions" style="display: flex; justify-content: center; margin-bottom: 3rem;">
+        <button class="btn btn-yellow" @click="openRecommendInputModal" style="padding: 1.5rem 3rem; font-size: 1.5rem; border-radius: 12px; box-shadow: 0 6px 0 #c28c40; width: 100%; max-width: 400px; animation: pulse 2s infinite;">
+          <i class="fa-solid fa-wand-magic-sparkles"></i> 보드게임 추천받기
         </button>
       </div>
 
-      <div style="display: grid; grid-template-columns: 320px 1fr; gap: 2rem; align-items: start;">
-        <!-- Left: AI Input -->
-        <div class="card panel" style="position: sticky; top: 2rem; aspect-ratio: 1 / 1; display: flex; flex-direction: column;">
-          <h3 style="margin-top: 0; margin-bottom: 15px;">상황을 알려주세요</h3>
-          <div style="display: flex; flex-direction: column; gap: 10px; flex-grow: 1;">
-            <textarea
-              v-model="situation"
-              class="input-field"
-              placeholder="예: 초보자 4명이서 1시간 안에 끝나는 파티 게임&#10;&#10;(Enter로 바로 검색, Shift+Enter로 줄바꿈)"
-              style="flex-grow: 1; resize: none; margin-bottom: 0; border-radius: 8px;"
-              @keydown.enter.exact.prevent="getAIRecommend"
-            ></textarea>
-            <button class="btn btn-brown" style="width: 100%; padding: 1rem; margin-top: 10px; font-size: 1.1rem;" @click="getAIRecommend" :disabled="aiLoading">
-              <i class="fa-solid fa-wand-magic-sparkles"></i> AI에게 추천받기
-            </button>
-            <div v-if="aiLoading" style="text-align: center; margin-top: 10px; color: var(--primary-color);">
-              <i class="fa-solid fa-spinner fa-spin"></i> AI가 고민 중...
-            </div>
+      <!-- Trending Section -->
+      <div class="trending-section" style="max-width: 800px; margin: 0 auto; text-align: left;">
+        <h3 style="border-bottom: 2px solid var(--primary-color); padding-bottom: 10px; margin-bottom: 15px;">
+          <i class="fa-solid fa-fire" style="color: red;"></i> 실시간 많이 찾는 보드게임
+        </h3>
+        
+        <div v-if="trendingLoading" style="text-align: center; padding: 20px;"><i class="fa-solid fa-spinner fa-spin"></i> 불러오는 중...</div>
+        <div v-else class="card" style="padding: 0; overflow: hidden;">
+          <table class="games-table" style="margin: 0;">
+            <tbody>
+              <tr v-for="game in visibleTrendingGames" :key="game.game_id + '-' + game.rank" @click="openGameModal(game.game_id, game.title)">
+                <td style="width: 50px; text-align: center; font-weight: bold; font-size: 1.1rem;" :style="{ color: game.rank <= 3 ? 'red' : 'var(--text-light)' }">{{ game.rank }}</td>
+                <td style="font-weight: bold; position: relative;">
+                  <transition name="ticker-slide" mode="out-in">
+                    <div :key="game.game_id" style="display: flex; align-items: center; gap: 8px; width: 100%;">
+                      <span>{{ game.title }}</span>
+                      <span style="font-size: 0.85rem; color: var(--text-light); font-weight: normal;">
+                        <i class="fa-regular fa-eye"></i> {{ game.view_count || 0 }}
+                      </span>
+                    </div>
+                  </transition>
+                </td>
+                <td style="width: 50px; text-align: right; color: var(--text-light); padding-right: 20px; cursor: pointer;" @click.stop="showAllTrending = !showAllTrending">
+                  <i v-if="!showAllTrending || game.rank === 1" class="fa-solid" :class="showAllTrending ? 'fa-chevron-up' : 'fa-chevron-down'"></i>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Recommend Modals -->
+  <div v-if="recommendModal.step > 0" class="modal-overlay" @click.self="closeRecommendModal">
+    <div class="modal-content wide">
+      <button class="modal-close" type="button" @click="closeRecommendModal">&times;</button>
+      
+      <!-- Step 1: Input -->
+      <template v-if="recommendModal.step === 1">
+        <h2 style="color: var(--primary-color); margin-bottom: 5px;"><i class="fa-solid fa-sliders"></i> 맞춤 상황 입력</h2>
+        <p style="color: var(--text-light); margin-bottom: 20px;">원하시는 조건만 선택해주세요. 나머지는 AI가 알아서 판단합니다.</p>
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; text-align: left;">
+          <div>
+            <label style="font-weight: bold; font-size: 0.9rem;">MBTI</label>
+            <select v-model="recommendModal.params.mbti" class="input-field" style="margin-bottom: 0;">
+              <option value="">상관없음</option>
+              <option value="E (외향적)">E (외향적)</option>
+              <option value="I (내향적)">I (내향적)</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-weight: bold; font-size: 0.9rem;">인원수</label>
+            <select v-model="recommendModal.params.players" class="input-field" style="margin-bottom: 0;">
+              <option value="">상관없음</option>
+              <option value="2인">2인 (커플/친구)</option>
+              <option value="3~4인">3~4인</option>
+              <option value="5인 이상">5인 이상 (다인원)</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-weight: bold; font-size: 0.9rem;">플레이 시간</label>
+            <select v-model="recommendModal.params.time" class="input-field" style="margin-bottom: 0;">
+              <option value="">상관없음</option>
+              <option value="30분 이하">30분 이하 (가볍게)</option>
+              <option value="1시간 내외">1시간 내외</option>
+              <option value="2시간 이상">2시간 이상 (각잡고)</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-weight: bold; font-size: 0.9rem;">난이도</label>
+            <select v-model="recommendModal.params.difficulty" class="input-field" style="margin-bottom: 0;">
+              <option value="">상관없음</option>
+              <option value="쉬움">쉬움 (초보자 환영)</option>
+              <option value="보통">보통 (어느정도 해봄)</option>
+              <option value="어려움">어려움 (보드게임 긱)</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-weight: bold; font-size: 0.9rem;">성향</label>
+            <select v-model="recommendModal.params.preference" class="input-field" style="margin-bottom: 0;">
+              <option value="">상관없음</option>
+              <option value="파티게임">파티/시끌벅적</option>
+              <option value="전략게임">전략/두뇌싸움</option>
+              <option value="협력게임">협력/원팀</option>
+              <option value="마피아">마피아/블러핑</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-weight: bold; font-size: 0.9rem;">테마</label>
+            <input v-model="recommendModal.params.theme" class="input-field" placeholder="예: 좀비, 판타지, 방탈출..." style="margin-bottom: 0;" @keyup.enter="submitRecommend" />
           </div>
         </div>
-
-        <!-- Right: Recommendations -->
-        <div>
-          <div v-if="!aiLoading && aiRecommendations.length === 0" style="text-align: center; padding: 3rem; background: var(--box-bg); border-radius: 8px; border: 2px dashed #ccc;">
-            <i class="fa-solid fa-robot" style="font-size: 3rem; color: #ccc; margin-bottom: 1rem;"></i>
-            <p style="color: #666; font-size: 1.1rem; margin: 0;">어떤 상황인지 입력하고 Enter를 누르면<br>딱 맞는 게임을 추천해 드려요!</p>
-          </div>
-          <div v-else style="display: flex; flex-direction: column; gap: 15px;">
+        
+        <div style="margin-top: 30px; text-align: center;">
+          <button class="btn btn-brown" @click="submitRecommend" :disabled="aiLoading" style="width: 100%; padding: 1rem; font-size: 1.1rem;">
+            <i class="fa-solid" :class="aiLoading ? 'fa-spinner fa-spin' : 'fa-wand-magic-sparkles'"></i> 
+            {{ aiLoading ? 'AI가 고민 중...' : '이 조건으로 추천받기' }}
+          </button>
+        </div>
+        <p v-if="aiError" style="color: red; margin-top: 10px;">{{ aiError }}</p>
+      </template>
+      
+      <!-- Step 2: Results -->
+      <template v-else-if="recommendModal.step === 2">
+       <div v-else style="display: flex; flex-direction: column; gap: 15px;">
             <div class="recommend-result-actions">
               <div>
                 <strong>추천 결과</strong>
@@ -138,81 +197,9 @@
               </div>
             </div>
             <p v-if="aiError" style="color: red; text-align: center;">오류: {{ aiError }}</p>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <section v-else-if="view === 'filter_search'">
-      <div style="display: flex; align-items: flex-end; justify-content: space-between; border-bottom: 2px solid var(--box-bg); padding-bottom: 0.8rem; margin-bottom: 1.5rem;">
-        <div style="display: flex; align-items: baseline; gap: 12px;">
-          <h2 style="font-size: 1.8rem; color: var(--primary-color); margin: 0;">
-            <i class="fa-solid fa-filter" style="color: var(--secondary-color);"></i> 조건 필터 검색
-          </h2>
-          <span style="color: var(--text-light); font-size: 0.95rem;">인원, 시간, 난이도를 직접 지정해서 검색해보세요</span>
-        </div>
-        <button @click="showMain" style="background: none; border: none; font-size: 1rem; color: var(--text-light); cursor: pointer; padding: 0; display: flex; align-items: center; gap: 5px;">
-          <i class="fa-solid fa-arrow-left"></i> 메인으로
-        </button>
-      </div>
-
-      <div style="display: grid; grid-template-columns: 280px 1fr; gap: 2rem; align-items: start;">
-        <!-- Left: Filters -->
-        <div class="card panel" style="position: sticky; top: 2rem; aspect-ratio: 1 / 1; display: flex; flex-direction: column;">
-          <h3 style="margin-top: 0; margin-bottom: 15px;">조건 필터</h3>
-          <div style="display: flex; flex-direction: column; gap: 12px; flex-grow: 1;">
-            <div>
-              <label style="font-size: 0.9rem; color: var(--text-light); font-weight: bold;">인원(명)</label>
-              <input v-model="filters.players" type="number" placeholder="예: 4" class="input-field" @keyup.enter="fetchFilteredGames" style="margin-bottom: 0;" />
-            </div>
-            <div>
-              <label style="font-size: 0.9rem; color: var(--text-light); font-weight: bold;">시간(분 이하)</label>
-              <input v-model="filters.time" type="number" placeholder="예: 60" class="input-field" @keyup.enter="fetchFilteredGames" style="margin-bottom: 0;" />
-            </div>
-            <div>
-              <label style="font-size: 0.9rem; color: var(--text-light); font-weight: bold;">난이도</label>
-              <select v-model="filters.difficulty" class="input-field" style="margin-bottom: 0;">
-                <option value="">전체</option>
-                <option value="easy">쉬움</option>
-                <option value="medium">보통</option>
-                <option value="hard">어려움</option>
-              </select>
-            </div>
-            <div style="flex-grow: 1;"></div>
-            <button class="btn btn-brown" style="margin-top: auto; width: 100%; padding: 0.8rem; font-size: 1rem;" @click="fetchFilteredGames" :disabled="filterLoading">
-              <i class="fa-solid" :class="filterLoading ? 'fa-spinner fa-spin' : 'fa-search'"></i> 검색하기
-            </button>
-          </div>
-        </div>
-
-        <!-- Right: Results Table -->
-        <div>
-          <div v-if="!filterLoading && games.length === 0" style="text-align: center; padding: 3rem; background: var(--box-bg); border-radius: 8px; border: 2px dashed #ccc;">
-            <i class="fa-solid fa-ghost" style="font-size: 3rem; color: #ccc; margin-bottom: 1rem;"></i>
-            <p style="color: #666; font-size: 1.1rem; margin: 0;">조건에 맞는 게임이 없어요 😢<br>조건을 조금 바꿔보세요!</p>
-          </div>
-          <div v-else-if="games.length > 0" class="card" style="padding: 0; overflow: hidden;">
-            <table class="games-table">
-              <thead>
-                <tr>
-                  <th style="width: 80px; text-align: center;">순위</th>
-                  <th>게임명</th>
-                  <th style="width: 100px; text-align: center;">출시연도</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="game in games" :key="game.game_id" @click="openGameModal(game.game_id, game.title)">
-                  <td style="text-align: center; font-weight: bold; color: var(--primary-color);">{{ game.rank }}</td>
-                  <td>{{ game.title }}</td>
-                  <td style="text-align: center; color: var(--text-light);">{{ game.released_year }}</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-    </section>
-  </main>
+      </template>
+    </div>
+  </div>
 
   <div v-if="toolModal" class="modal-overlay" @click.self="closeToolModal">
     <div class="modal-content retro-window" style="padding: 3px;">
@@ -510,13 +497,39 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
 
 const view = ref('main')
-const games = ref([])
-const filters = reactive({ players: '', time: '', difficulty: '' })
-const filterLoading = ref(false)
-const situation = ref('')
+const trendingGames = ref([])
+const trendingLoading = ref(false)
+const showAllTrending = ref(false)
+
+const currentTickerIndex = ref(0)
+let tickerInterval = null
+
+const visibleTrendingGames = computed(() => {
+  if (showAllTrending.value) {
+    return trendingGames.value.slice(0, 10).map((game, i) => ({ ...game, rank: i + 1 }))
+  } else {
+    if (trendingGames.value.length === 0) return []
+    const idx = currentTickerIndex.value
+    return [{ ...trendingGames.value[idx], rank: idx + 1 }]
+  }
+})
+
+function startTicker() {
+  tickerInterval = setInterval(() => {
+    if (trendingGames.value.length > 0 && !showAllTrending.value) {
+      currentTickerIndex.value = (currentTickerIndex.value + 1) % Math.min(10, trendingGames.value.length)
+    }
+  }, 2500)
+}
+
+const recommendModal = reactive({
+  step: 0,
+  params: { mbti: '', players: '', time: '', difficulty: '', preference: '', theme: '' }
+})
+
 const aiLoading = ref(false)
 const aiError = ref('')
 const aiRecommendations = ref([])
@@ -619,45 +632,46 @@ const ladderPathPoints = computed(() => ladderPath.value.map((point) => `${point
 onMounted(() => {
   loadRecentRecommendations()
   fetchCurrentUser()
-  fetchFilteredGames()
+  fetchTrendingGames()
   openInitialToolFromUrl()
+  startTicker()
+})
+
+onUnmounted(() => {
+  if (tickerInterval) clearInterval(tickerInterval)
 })
 
 function showMain() {
   view.value = 'main'
 }
 
-function showAiRecommend() {
-  view.value = 'ai_recommend'
+function openRecommendInputModal() {
+  recommendModal.step = 1
+  aiError.value = ''
 }
 
-function showFilterSearch() {
-  view.value = 'filter_search'
-  if (!games.value.length) fetchFilteredGames()
+function closeRecommendModal() {
+  recommendModal.step = 0
 }
 
-async function fetchFilteredGames() {
-  filterLoading.value = true
-  const params = new URLSearchParams()
-  if (filters.players) params.append('players', filters.players)
-  if (filters.time) params.append('time', filters.time)
-  if (filters.difficulty) params.append('difficulty', filters.difficulty)
+function backToRecommendInput() {
+  recommendModal.step = 1
+}
 
+async function fetchTrendingGames() {
+  trendingLoading.value = true
   try {
-    const response = await fetch(`/boardgames/filter/?${params.toString()}`)
+    const response = await fetch('/boardgames/api/trending/')
     const data = await response.json()
-    games.value = data.games || []
+    trendingGames.value = data.games || []
+  } catch (error) {
+    console.error("Trending fetch error", error)
   } finally {
-    filterLoading.value = false
+    trendingLoading.value = false
   }
 }
 
-async function getAIRecommend() {
-  if (!situation.value) {
-    alert('상황을 입력해주세요.')
-    return
-  }
-
+async function submitRecommend() {
   aiLoading.value = true
   aiError.value = ''
   aiRecommendations.value = []
@@ -670,7 +684,7 @@ async function getAIRecommend() {
         'Content-Type': 'application/json',
         'X-CSRFToken': getCookie('csrftoken') || ''
       },
-      body: JSON.stringify({ situation: situation.value })
+      body: JSON.stringify(recommendModal.params)
     })
     const data = await response.json()
     if (data.error) {
@@ -680,6 +694,7 @@ async function getAIRecommend() {
     aiRecommendations.value = data.recommendations || []
     aiRecommendations.value.forEach((item) => ensureFeedbackForm(item.title))
     saveRecentRecommendationSession(situation.value, aiRecommendations.value)
+    recommendModal.step = 2
   } catch (error) {
     aiError.value = error.message
   } finally {

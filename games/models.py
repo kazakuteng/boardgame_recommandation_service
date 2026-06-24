@@ -6,6 +6,7 @@ class BoardGames(models.Model):
     title = models.CharField(max_length=200)
     rank = models.IntegerField()
     released_year = models.IntegerField()
+    view_count = models.IntegerField(default=0)
 
 class GameDetails(models.Model):
     boardgame = models.ForeignKey(BoardGames, on_delete=models.CASCADE, related_name='details')

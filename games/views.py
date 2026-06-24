@@ -112,7 +112,16 @@ def recommend_game(request, game_id):
 def situation_recommend(request):
     try:
         data = request.data
-        situation = data.get('situation', '')
+        
+        # New multi-param extraction
+        mbti = data.get('mbti', '상관없음')
+        players = data.get('players', '상관없음')
+        time = data.get('time', '상관없음')
+        difficulty = data.get('difficulty', '상관없음')
+        preference = data.get('preference', '상관없음')
+        theme = data.get('theme', '상관없음')
+        
+        situation = f"MBTI: {mbti}, 인원수: {players}, 시간: {time}, 난이도: {difficulty}, 성향: {preference}, 테마: {theme}"
         
         gms_key = os.environ.get('GMS_KEY', '')
         gms_endpoint = os.environ.get('GMS_ENDPOINT', 'https://gms.ssafy.io/gmsapi/api.openai.com/v1/chat/completions')
@@ -120,7 +129,6 @@ def situation_recommend(request):
             return JsonResponse({'error': 'GMS_KEY is not set.'}, status=500)
             
         import random
-        # DB에 있는 게임 목록 가져오기: RAG 다양성을 위해 상위 1000개 중 랜덤 150개 추출 (스펙 포함)
         all_ids = list(GameDetails.objects.filter(boardgame__rank__lte=1000).values_list('id', flat=True))
         if all_ids:
             selected_ids = random.sample(all_ids, min(150, len(all_ids)))
@@ -135,17 +143,17 @@ def situation_recommend(request):
         game_list_str = "\n".join(game_list_lines) if game_list_lines else "(현재 DB에 게임 정보가 없습니다)"
         
         system_prompt = """당신은 방구석에서 10년 동안 보드게임만 연구한, 통찰력 있는 B급 감성의 보드게임 오타쿠 전문가입니다.
-사용자가 입력한 상황(인원수, 시간 등)과 제공된 [데이터베이스 목록]의 게임 스펙(인원, 시간, 난이도)을 꼼꼼히 대조하여, 조건에 완벽히 부합하는 게임 딱 3개만 고르세요.
-추천 이유는 존댓말을 유지하되, 매우 유쾌하고 친근하며 재치 있는 말투로 작성해주세요. (예: "친구분들끼리 이거 하다가 우정 파괴되기 딱 좋습니다 ㅎㅎ", "초보자분들도 금방 적응하실 수 있는 갓겜이랍니다!")
+사용자가 입력한 다중 조건(MBTI, 인원수, 시간, 난이도, 성향, 테마)과 제공된 [데이터베이스 목록]의 게임 스펙(인원, 시간, 난이도)을 꼼꼼히 대조하여, 조건에 가장 잘 맞는 게임 딱 3개만 고르세요.
+추천 이유는 존댓말을 유지하되, 매우 유쾌하고 친근하며 재치 있는 말투로 작성해주세요.
 인사말이나 부연 설명은 절대 하지 말고, 오직 지정된 JSON 배열 포맷만 출력하세요."""
 
         user_prompt = f"""[우리 데이터베이스 목록 (스펙 포함)]
 {game_list_str}
 
-[상황]
+[사용자 맞춤 조건]
 {situation}
 
-위 상황에 맞는 보드게임 3개를 추천해주세요. 
+위 조건에 가장 어울리는 보드게임 3개를 추천해주세요. 
 포맷: [{{"title": "...", "reason": "..."}}]"""
 
         url = gms_endpoint
@@ -288,6 +296,8 @@ def details_by_title(request):
         from .models import BoardGames, GameDetails
         game = BoardGames.objects.filter(title=title).first()
         if game:
+            game.view_count += 1
+            game.save(update_fields=['view_count'])
             details = GameDetails.objects.filter(boardgame=game).first()
             if details:
                 from .serializers import GameDetailsSerializer
@@ -341,6 +351,9 @@ def boardgame_list(request):
 def boardgame_detail(request, game_id):
     try:
         game = BoardGames.objects.get(game_id=game_id)
+        game.view_count += 1
+        game.save(update_fields=['view_count'])
+        
         details = GameDetails.objects.filter(boardgame=game)
         if details.exists():
             serializer = GameDetailsSerializer(details.first())
@@ -365,3 +378,10 @@ def top_boardgame(request):
         return Response({"message": "게임을 찾을 수 없습니다."}, status=status.HTTP_404_NOT_FOUND)
     except Exception as e:
         return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@api_view(['GET'])
+def trending_boardgames(request):
+    # view_count descending, then rank ascending
+    games = BoardGames.objects.all().order_by('-view_count', 'rank')[:10]
+    serializer = BoardGamesSerializer(games, many=True)
+    return Response({'games': serializer.data})
