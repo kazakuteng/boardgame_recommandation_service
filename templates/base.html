@@ -5,29 +5,27 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>뭐할게임?</title>
     {% load static %}
-    <link rel="stylesheet" href="{% static 'css/style.css' %}?v=4">
+    <link rel="stylesheet" href="{% static 'css/style.css' %}?v=17">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 </head>
 <body>
-    <nav class="navbar">
+    <nav class="retro-titlebar-nav">
         <a href="{% url 'index' %}" class="navbar-brand">
             <i class="fa-solid fa-dice"></i> 뭐할게임?
         </a>
         <div class="navbar-links">
-            <a href="{% url 'index' %}" class="{% if request.path == '/' or request.path == '/boardgames/' %}active{% endif %}"><i class="fa-solid fa-link"></i> 추천</a>
-            <a href="/?tool=penalty"><i class="fa-solid fa-circle-exclamation"></i> 벌칙</a>
-            <a href="/?tool=turn"><i class="fa-solid fa-route"></i> 순서</a>
-            <a href="{% url 'community:index' %}" class="{% if 'community' in request.path %}active{% endif %}"><i class="fa-regular fa-comment"></i> 낙서장</a>
+            <a href="{% url 'index' %}" class="retro-btn blue"><i class="fa-solid fa-house"></i> 메인</a>
+            <a href="{% url 'community:index' %}" class="retro-btn green"><i class="fa-regular fa-comment"></i> 낙서장</a>
             
             {% if user.is_authenticated %}
-                <a href="{% url 'accounts:profile' user.pk %}"><i class="fa-regular fa-user"></i> {{ user.username }}</a>
+                <a href="{% url 'accounts:profile' user.pk %}" class="retro-btn yellow"><i class="fa-regular fa-user"></i> {{ user.username }}</a>
                 <form action="{% url 'accounts:logout' %}" method="post" class="navbar-logout-form">
                     {% csrf_token %}
-                    <button type="submit">로그아웃</button>
+                    <button type="submit" class="retro-btn red">로그아웃</button>
                 </form>
             {% else %}
-                <a href="{% url 'accounts:login' %}">로그인</a>
-                <a href="{% url 'accounts:signup' %}">회원가입</a>
+                <a href="{% url 'accounts:login' %}" class="retro-btn yellow">로그인</a>
+                <a href="{% url 'accounts:signup' %}" class="retro-btn red">회원가입</a>
             {% endif %}
         </div>
     </nav>
@@ -41,19 +39,20 @@
     <!-- B-grade Retro Ads (Bottom Right) -->
     <div style="position: fixed; bottom: 20px; right: 20px; z-index: 999; display: flex; flex-direction: column; gap: 15px; pointer-events: none;">
         <!-- Ad 1: Penalty -->
-        <div style="pointer-events: auto; background: var(--box-bg); border: 3px outset #eadecc; padding: 3px; width: 150px; text-align: center; box-shadow: 4px 4px 0px rgba(0,0,0,0.1); cursor: pointer; transition: transform 0.1s;" onclick="openToolModal('penalty')" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
-            <div style="background: #fff; border: 2px inset #eadecc; padding: 10px 5px;">
-                <div style="color: red; font-size: 0.75rem; font-weight: bold; margin-bottom: 4px; animation: blink 1s infinite;">[ 경 고 ]</div>
-                <div style="color: var(--primary-color); font-size: 0.9rem; font-weight: 900; margin-bottom: 10px; line-height: 1.3;">☠ 벌칙 안 뽑고<br>도망갈거임?</div>
-                <button style="background: var(--accent-color); color: white; border: 2px outset #eadecc; font-size: 0.85rem; font-weight: bold; width: 100%; padding: 4px 0; cursor: pointer; box-shadow: none;">벌칙 룰렛 ➔</button>
+        <div style="pointer-events: auto; border: 3px outset #eadecc; cursor: pointer; width: 150px; box-sizing: border-box;" onclick="openToolModal('penalty')">
+            <div style="background: #fff; border: 2px inset #eadecc; padding: 10px 5px; display: flex; flex-direction: column; align-items: center;">
+                <div class="banner-bomb">💣</div>
+                <div style="color: var(--primary-color); font-size: 1rem; font-weight: 900; margin-bottom: 10px; line-height: 1.3;">벌칙 정하기!</div>
+                <button style="background: var(--accent-color); color: white; border: 2px outset #eadecc; font-size: 0.85rem; font-weight: bold; width: 100%; padding: 4px 0; cursor: pointer; box-shadow: none;">클릭 ➔</button>
             </div>
         </div>
 
         <!-- Ad 2: Turn -->
-        <div style="pointer-events: auto; background: var(--box-bg); border: 3px dashed var(--secondary-color); padding: 5px; width: 150px; text-align: center; box-shadow: 4px 4px 0px rgba(0,0,0,0.1); cursor: pointer; transition: transform 0.1s;" onclick="openToolModal('turn')" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
-            <div style="background: #fff; padding: 8px 5px; border: 1px solid var(--secondary-color);">
-                <div style="color: var(--primary-color); font-size: 0.9rem; font-weight: 900; margin-bottom: 10px; line-height: 1.3;">🪜 순서 정하고<br>보드게임하자!</div>
-                <button style="background: var(--secondary-color); color: #fff; border: 2px outset #eadecc; font-size: 0.85rem; font-weight: bold; width: 100%; padding: 4px 0; cursor: pointer; box-shadow: none;">순서 정하기 ➔</button>
+        <div style="pointer-events: auto; border: 3px outset #eadecc; cursor: pointer; width: 150px; box-sizing: border-box;" onclick="openToolModal('turn')">
+            <div style="background: #fff; border: 2px inset #eadecc; padding: 10px 5px; display: flex; flex-direction: column; align-items: center;">
+                <div class="banner-ladder">🪜</div>
+                <div style="color: var(--primary-color); font-size: 1rem; font-weight: 900; margin-bottom: 10px; line-height: 1.3;">순서 정하기!</div>
+                <button style="background: var(--secondary-color); color: #fff; border: 2px outset #eadecc; font-size: 0.85rem; font-weight: bold; width: 100%; padding: 4px 0; cursor: pointer; box-shadow: none;">클릭 ➔</button>
             </div>
         </div>
     </div>

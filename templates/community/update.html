@@ -5,7 +5,7 @@
     <p class="subtitle">뭐라고 썼었더라 🖍️</p>
 </div>
 
-<div class="card" style="margin-bottom: 2rem; border: 4px solid var(--box-bg); border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.03); background:#fff; text-align: left;">
+<div class="card" style="margin-bottom: 2rem; text-align: left;">
     <form action="{% url 'community:update' article.pk %}" method="POST" style="display:flex; gap:10px;">
         {% csrf_token %}
         <input type="text" name="content" class="input-field" style="margin-bottom:0;" value="{{ article.content }}" required>
