@@ -79,6 +79,32 @@
             <p class="empty-profile-text">아직 작성한 낙서가 없습니다.</p>
         {% endif %}
     </div>
+
+    <div class="card profile-section">
+        <h3>추천 리뷰</h3>
+        {% if recommendation_feedbacks %}
+            <div class="profile-article-list">
+                {% for feedback in recommendation_feedbacks %}
+                    <article class="profile-article-item">
+                        <p>
+                            <strong>{{ feedback.game_title }}</strong>
+                            {% if feedback.rating %} · 별점 {{ feedback.rating }}/5{% endif %}
+                            {% if feedback.player_count %} · {{ feedback.player_count }}명{% endif %}
+                        </p>
+                        {% if feedback.review %}
+                            <p>{{ feedback.review }}</p>
+                        {% endif %}
+                        <div>
+                            <span>{{ feedback.created_at|date:"Y.m.d H:i" }}</span>
+                            <span>추천 개선에 활용</span>
+                        </div>
+                    </article>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p class="empty-profile-text">아직 저장한 추천 리뷰가 없습니다.</p>
+        {% endif %}
+    </div>
 </section>
 
 <script>

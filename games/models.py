@@ -1,4 +1,5 @@
 from django.db import models
+from django.conf import settings
 
 class BoardGames(models.Model):
     game_id = models.IntegerField(primary_key=True)
@@ -12,3 +13,16 @@ class GameDetails(models.Model):
     max_players = models.IntegerField()
     playing_time = models.IntegerField()
     weight = models.FloatField()
+
+
+class RecommendationFeedback(models.Model):
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='recommendation_feedbacks')
+    boardgame = models.ForeignKey(BoardGames, on_delete=models.SET_NULL, null=True, blank=True, related_name='recommendation_feedbacks')
+    game_title = models.CharField(max_length=200)
+    situation = models.TextField(blank=True)
+    recommendation_reason = models.TextField(blank=True)
+    rating = models.PositiveSmallIntegerField(null=True, blank=True)
+    player_count = models.PositiveSmallIntegerField(null=True, blank=True)
+    review = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)

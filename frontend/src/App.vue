@@ -29,21 +29,51 @@
 
   <main class="container">
     <section v-if="view === 'main'">
-      <div style="margin-bottom: 3rem; position: relative;">
-        <i class="fa-solid fa-dice" style="font-size: 3rem; color: #a491bc;"></i>
-        <h1>뭐할게임?</h1>
-        <p class="subtitle">5명이서 할 건 없다고? 여기 있음</p>
-        <div style="margin-top: 10px; font-size: 0.8rem; color: #999;">※ 버그는 컨셉입니다.</div>
-      </div>
+      <div class="main-dashboard">
+        <aside class="recent-recommendations">
+          <div class="recent-header">
+            <h3>최근 추천</h3>
+            <button v-if="recentRecommendations.length" type="button" @click="clearRecentRecommendations">비우기</button>
+          </div>
+          <p v-if="!recentRecommendations.length" class="recent-empty">
+            아직 추천받은 게임이 없습니다.
+          </p>
+          <div v-for="session in recentRecommendations" :key="session.id" class="recent-session">
+            <p class="recent-situation">{{ session.situation }}</p>
+            <div
+              v-for="item in session.recommendations"
+              :key="`${session.id}-${item.title}`"
+              class="recent-game"
+              @click="openAiRecommendModal(item.title)"
+            >
+              <img v-if="item.image_url" :src="item.image_url" alt="board game cover" />
+              <div>
+                <strong>{{ item.title }}</strong>
+                <span>{{ item.reason }}</span>
+              </div>
+              <button type="button" @click.stop="openReviewFromRecent(item.title)">리뷰</button>
+            </div>
+          </div>
+        </aside>
 
-      <div class="hero-actions" style="position: relative; display: flex; flex-direction: column; align-items: center; gap: 1rem;">
-        <button class="btn btn-yellow" @click="showAiRecommend" style="padding: 1.5rem 2rem; font-size: 1.2rem; width: 100%; max-width: 400px;">
-          <i class="fa-solid fa-robot"></i> AI 상황 맞춤 추천
-        </button>
-        
-        <button class="btn btn-blue" @click="showFilterSearch" style="padding: 1.5rem 2rem; font-size: 1.2rem; width: 100%; max-width: 400px;">
-          <i class="fa-solid fa-filter"></i> 조건 필터로 직접 찾기
-        </button>
+        <div class="main-hero">
+          <div style="margin-bottom: 3rem; position: relative;">
+            <i class="fa-solid fa-dice" style="font-size: 3rem; color: #a491bc;"></i>
+            <h1>뭐할게임?</h1>
+            <p class="subtitle">5명이서 할 건 없다고? 여기 있음</p>
+            <div style="margin-top: 10px; font-size: 0.8rem; color: #999;">※ 버그는 컨셉입니다.</div>
+          </div>
+
+          <div class="hero-actions" style="position: relative; display: flex; flex-direction: column; align-items: center; gap: 1rem;">
+            <button class="btn btn-yellow" @click="showAiRecommend" style="padding: 1.5rem 2rem; font-size: 1.2rem; width: 100%; max-width: 400px;">
+              <i class="fa-solid fa-robot"></i> AI 상황 맞춤 추천
+            </button>
+
+            <button class="btn btn-blue" @click="showFilterSearch" style="padding: 1.5rem 2rem; font-size: 1.2rem; width: 100%; max-width: 400px;">
+              <i class="fa-solid fa-filter"></i> 조건 필터로 직접 찾기
+            </button>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -88,6 +118,16 @@
             <p style="color: #666; font-size: 1.1rem; margin: 0;">어떤 상황인지 입력하고 Enter를 누르면<br>딱 맞는 게임을 추천해 드려요!</p>
           </div>
           <div v-else style="display: flex; flex-direction: column; gap: 15px;">
+            <div class="recommend-result-actions">
+              <div>
+                <strong>추천 결과</strong>
+                <p>게임을 눌러 상세 정보를 확인하고 리뷰를 남기면, 나중에 프로필에서 다시 볼 수 있어요.</p>
+              </div>
+              <button class="btn btn-outline result-refresh-btn" type="button" @click="getAIRecommend" :disabled="aiLoading">
+                <i class="fa-solid fa-rotate"></i> 새로 추천
+              </button>
+            </div>
+
             <div v-for="item in aiRecommendations" :key="item.title" class="card ai-item" @click="openAiRecommendModal(item.title)" style="margin: 0;">
               <div class="ai-item-content" style="display: flex; gap: 15px; align-items: flex-start;">
                 <img v-if="item.image_url" :src="item.image_url" alt="board game cover" class="ai-item-image" />
@@ -394,6 +434,12 @@
             </div>
           </div>
           <div style="flex: 1;">
+            <div class="modal-review-toggle-row">
+              <button class="btn btn-outline modal-review-toggle" type="button" @click="openModalReview">
+                <i class="fa-regular fa-pen-to-square"></i>
+                리뷰
+              </button>
+            </div>
             <h4>유튜브 영상 (룰 가이드)</h4>
             <div class="youtube-box">
               <i v-if="gameModal.guideLoading" class="fa-solid fa-spinner fa-spin"></i>
@@ -424,6 +470,43 @@
       </div>
     </div>
   </div>
+
+  <div v-if="gameModal.reviewOpen && feedbackForms[modalFeedbackTitle]" class="modal-overlay review-overlay" @click.self="closeModalReview">
+    <div class="modal-content review-modal">
+      <button class="modal-close" type="button" @click="closeModalReview">&times;</button>
+      <div class="modal-feedback-box">
+        <h4>{{ modalFeedbackTitle }} 리뷰</h4>
+        <p>별점, 함께한 인원, 짧은 리뷰를 남기면 프로필에서 다시 볼 수 있고 다음 추천에도 반영할 수 있어요.</p>
+        <div class="feedback-form">
+          <div class="feedback-grid">
+            <label>
+              별점
+              <select v-model="feedbackForms[modalFeedbackTitle].rating" class="input-field">
+                <option value="">선택 안 함</option>
+                <option value="5">5점</option>
+                <option value="4">4점</option>
+                <option value="3">3점</option>
+                <option value="2">2점</option>
+                <option value="1">1점</option>
+              </select>
+            </label>
+            <label>
+              인원
+              <input v-model="feedbackForms[modalFeedbackTitle].player_count" class="input-field" type="number" min="1" placeholder="예: 4" />
+            </label>
+          </div>
+          <textarea v-model="feedbackForms[modalFeedbackTitle].review" class="input-field" placeholder="이 게임 어땠나요? 짧게 남겨보세요." rows="4"></textarea>
+          <div class="feedback-form-actions">
+            <span class="feedback-status">{{ feedbackForms[modalFeedbackTitle].status }}</span>
+            <button class="btn btn-brown feedback-save-btn" type="button" @click="saveRecommendationFeedback({ title: modalFeedbackTitle, reason: gameModal.summary })" :disabled="feedbackForms[modalFeedbackTitle].saving">
+              <i class="fa-solid fa-floppy-disk"></i>
+              {{ feedbackForms[modalFeedbackTitle].saving ? '저장 중...' : '리뷰 저장' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 </template>
 
 <script setup>
@@ -437,6 +520,8 @@ const situation = ref('')
 const aiLoading = ref(false)
 const aiError = ref('')
 const aiRecommendations = ref([])
+const recentRecommendations = ref([])
+const feedbackForms = reactive({})
 const currentUser = reactive({
   isAuthenticated: false,
   username: '',
@@ -468,8 +553,12 @@ const gameModal = reactive({
   summary: '',
   youtubeVideoId: '',
   shareContent: '',
-  shareLoading: false
+  shareLoading: false,
+  reviewOpen: false
 })
+const modalFeedbackTitle = computed(() => gameModal.title.replace(' (AI 추천)', '').trim())
+const RECENT_RECOMMENDATIONS_KEY = 'boardgame_recent_recommendations'
+const GAME_GUIDE_CACHE_KEY = 'boardgame_guide_cache'
 
 const wheelColors = ['#c45b4c', '#e0ac5f', '#5d3f2e', '#6e9f84', '#6f88b8', '#a491bc', '#d7837f']
 const ladderHeight = 260
@@ -528,6 +617,7 @@ const ladderRungs = computed(() => {
 const ladderPathPoints = computed(() => ladderPath.value.map((point) => `${point.x},${point.y}`).join(' '))
 
 onMounted(() => {
+  loadRecentRecommendations()
   fetchCurrentUser()
   fetchFilteredGames()
   openInitialToolFromUrl()
@@ -571,6 +661,7 @@ async function getAIRecommend() {
   aiLoading.value = true
   aiError.value = ''
   aiRecommendations.value = []
+  resetFeedbackForms()
 
   try {
     const response = await fetch('/boardgames/recommend/', {
@@ -587,11 +678,146 @@ async function getAIRecommend() {
       return
     }
     aiRecommendations.value = data.recommendations || []
+    aiRecommendations.value.forEach((item) => ensureFeedbackForm(item.title))
+    saveRecentRecommendationSession(situation.value, aiRecommendations.value)
   } catch (error) {
     aiError.value = error.message
   } finally {
     aiLoading.value = false
   }
+}
+
+function loadRecentRecommendations() {
+  try {
+    recentRecommendations.value = JSON.parse(localStorage.getItem(RECENT_RECOMMENDATIONS_KEY) || '[]')
+  } catch {
+    recentRecommendations.value = []
+  }
+}
+
+function saveRecentRecommendationSession(currentSituation, recommendations) {
+  if (!recommendations.length) return
+  const session = {
+    id: Date.now(),
+    situation: currentSituation,
+    recommendations: recommendations.slice(0, 3),
+    createdAt: new Date().toISOString()
+  }
+  recentRecommendations.value = [session, ...recentRecommendations.value].slice(0, 5)
+  localStorage.setItem(RECENT_RECOMMENDATIONS_KEY, JSON.stringify(recentRecommendations.value))
+}
+
+function clearRecentRecommendations() {
+  recentRecommendations.value = []
+  localStorage.removeItem(RECENT_RECOMMENDATIONS_KEY)
+}
+
+function getGuideCache() {
+  try {
+    return JSON.parse(localStorage.getItem(GAME_GUIDE_CACHE_KEY) || '{}')
+  } catch {
+    return {}
+  }
+}
+
+function setGuideCache(key, value) {
+  const cache = getGuideCache()
+  cache[key] = {
+    ...value,
+    cachedAt: new Date().toISOString()
+  }
+  localStorage.setItem(GAME_GUIDE_CACHE_KEY, JSON.stringify(cache))
+}
+
+function getCachedGuide(key) {
+  return getGuideCache()[key] || null
+}
+
+function guideTitleKey(title) {
+  return `title:${title.trim().toLowerCase()}`
+}
+
+function guideIdKey(gameId) {
+  return `id:${gameId}`
+}
+
+function createFeedbackForm() {
+  return {
+    open: false,
+    rating: '',
+    player_count: '',
+    review: '',
+    saving: false,
+    status: ''
+  }
+}
+
+function ensureFeedbackForm(title) {
+  if (!feedbackForms[title]) {
+    feedbackForms[title] = createFeedbackForm()
+  }
+  return feedbackForms[title]
+}
+
+function resetFeedbackForms() {
+  Object.keys(feedbackForms).forEach((title) => {
+    delete feedbackForms[title]
+  })
+}
+
+async function saveRecommendationFeedback(item) {
+  const form = ensureFeedbackForm(item.title)
+  form.saving = true
+  form.status = ''
+
+  try {
+    const response = await fetch('/boardgames/api/recommendation-feedback/', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': getCookie('csrftoken') || ''
+      },
+      body: JSON.stringify({
+        game_title: item.title,
+        situation: situation.value,
+        recommendation_reason: item.reason || '',
+        rating: form.rating,
+        player_count: form.player_count,
+        review: form.review
+      })
+    })
+
+    const data = await response.json()
+    if (response.status === 401) {
+      form.status = '로그인 후 저장할 수 있어요.'
+      return
+    }
+    if (!response.ok || data.status !== 'success') {
+      form.status = data.message || '저장에 실패했습니다.'
+      return
+    }
+
+    form.status = '저장됐어요. 프로필에서 다시 볼 수 있습니다.'
+    form.review = ''
+  } catch (error) {
+    form.status = `오류: ${error.message}`
+  } finally {
+    form.saving = false
+  }
+}
+
+function openModalReview() {
+  ensureFeedbackForm(modalFeedbackTitle.value)
+  gameModal.reviewOpen = true
+}
+
+function closeModalReview() {
+  gameModal.reviewOpen = false
+}
+
+async function openReviewFromRecent(title) {
+  await openAiRecommendModal(title, { openReview: true })
 }
 
 function openToolModal(type) {
@@ -884,31 +1110,61 @@ async function openGameModal(gameId, title) {
 }
 
 async function fetchGameSmartGuide(gameId) {
+  const cacheKey = guideIdKey(gameId)
+  const cached = getCachedGuide(cacheKey)
+  if (cached) {
+    gameModal.summary = cached.summary || ''
+    gameModal.youtubeVideoId = cached.youtubeVideoId || ''
+    gameModal.guideLoading = false
+    return
+  }
+
   gameModal.guideLoading = true
   try {
     const response = await fetch(`/boardgames/${gameId}/recommend/`)
     const data = await response.json()
     gameModal.summary = data.summary || ''
     gameModal.youtubeVideoId = data.youtube_videoId || ''
+    setGuideCache(cacheKey, {
+      summary: gameModal.summary,
+      youtubeVideoId: gameModal.youtubeVideoId
+    })
   } finally {
     gameModal.guideLoading = false
   }
 }
 
-async function openAiRecommendModal(title) {
+async function openAiRecommendModal(title, options = {}) {
   resetGameModal(`${title} (AI 추천)`)
   gameModal.loading = true
   gameModal.guideLoading = true
 
   try {
+    const cacheKey = guideTitleKey(title)
+    const cached = getCachedGuide(cacheKey)
+    if (cached) {
+      gameModal.details = cached.details || null
+      gameModal.summary = cached.summary || ''
+      gameModal.youtubeVideoId = cached.youtubeVideoId || ''
+      return
+    }
+
     const response = await fetch(`/boardgames/api/details_by_title/?title=${encodeURIComponent(title)}`)
     const data = await response.json()
     gameModal.details = data.details || null
     gameModal.summary = data.ai_summary || ''
     gameModal.youtubeVideoId = data.youtube_videoId || ''
+    setGuideCache(cacheKey, {
+      details: gameModal.details,
+      summary: gameModal.summary,
+      youtubeVideoId: gameModal.youtubeVideoId
+    })
   } finally {
     gameModal.loading = false
     gameModal.guideLoading = false
+    if (options.openReview) {
+      gameModal.reviewOpen = true
+    }
   }
 }
 
@@ -942,7 +1198,7 @@ async function shareToCommunity() {
     const data = await response.json();
     if (data.status === 'success') {
       alert('낙서장에 성공적으로 공유되었습니다!');
-      gameModal.shareContent = '';
+      gameModal.shareContent = `#${cleanTitle} `;
     } else {
       alert(data.message || '공유에 실패했습니다.');
     }
@@ -963,7 +1219,9 @@ function resetGameModal(title) {
   gameModal.details = null
   gameModal.summary = ''
   gameModal.youtubeVideoId = ''
-  gameModal.shareContent = ''
+  gameModal.shareContent = `#${modalFeedbackTitle.value} `
   gameModal.shareLoading = false
+  gameModal.reviewOpen = false
+  ensureFeedbackForm(modalFeedbackTitle.value)
 }
 </script>
