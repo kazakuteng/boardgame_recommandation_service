@@ -5,7 +5,7 @@
     <p class="subtitle">보드게임 이야기를 가볍게 남겨보세요.</p>
     {% if tag_filter %}
     <div style="margin-top: 15px;">
-        <span style="background: var(--box-bg); padding: 8px 15px; border-radius: 20px; font-weight: bold; color: var(--accent-color);">
+        <span style="background: var(--box-bg); padding: 8px 15px; border: 2px inset #eadecc; font-weight: bold; color: var(--accent-color);">
             <i class="fa-solid fa-tag"></i> {{ tag_filter }} 관련 글 모아보기
             <a href="{% url 'community:index' %}" style="margin-left: 10px; color: var(--text-light); text-decoration: none;"><i class="fa-solid fa-xmark"></i></a>
         </span>
@@ -69,7 +69,7 @@
         {% if article.tags.all %}
         <div class="note-tags" style="margin-top: 10px; margin-bottom: 10px;">
             {% for tag in article.tags.all %}
-            <a href="{% url 'community:index' %}?tag={{ tag.name|urlencode }}" class="tag-badge" style="display: inline-block; background: var(--box-bg); color: var(--primary-color); padding: 4px 10px; border-radius: 20px; font-size: 0.85rem; text-decoration: none; font-weight: bold; margin-right: 5px;">#{{ tag.name }}</a>
+            <a href="{% url 'community:index' %}?tag={{ tag.name|urlencode }}" class="tag-badge" style="display: inline-block; background: var(--box-bg); color: var(--primary-color); padding: 4px 10px; border: 2px inset #eadecc; font-size: 0.85rem; text-decoration: none; font-weight: bold; margin-right: 5px;">#{{ tag.name }}</a>
             {% endfor %}
         </div>
         {% endif %}
@@ -138,7 +138,7 @@
         </h3>
         <form action="{% url 'community:create' %}" method="POST" class="modal-compose-form">
             {% csrf_token %}
-            <textarea name="content" class="input-field" placeholder="오늘 게임 어땠나요? 재미있는 이야기를 자유롭게 남겨보세요! 🖍️" required style="width: 100%; min-height: 120px; resize: vertical; margin-bottom: 1.2rem; font-family: inherit; font-size: 1rem; padding: 0.8rem; border-radius: 12px; border: 2px solid var(--box-bg); box-sizing: border-box;"></textarea>
+            <textarea name="content" class="input-field" placeholder="오늘 게임 어땠나요? 재미있는 이야기를 자유롭게 남겨보세요! 🖍️" required style="width: 100%; min-height: 120px; resize: vertical; margin-bottom: 1.2rem; font-family: inherit; font-size: 1rem; padding: 0.8rem; border: 2px inset #eadecc; box-sizing: border-box;"></textarea>
             <div style="display: flex; justify-content: flex-end; gap: 10px;">
                 <button type="button" class="btn btn-outline" onclick="closeComposeModal()" style="margin: 0; width: auto; font-size: 0.95rem; padding: 0.6rem 1.2rem;">취소</button>
                 <button type="submit" class="btn btn-yellow" style="margin: 0; width: auto; font-size: 0.95rem; padding: 0.6rem 1.5rem;">

@@ -1,74 +1,120 @@
 <template>
-  <nav class="navbar">
+  <BoardBackground />
+  <nav class="retro-titlebar-nav">
     <a href="#" class="navbar-brand" @click.prevent="showMain">
       <i class="fa-solid fa-dice"></i> 뭐할게임?
     </a>
     <div class="navbar-links">
-      <a href="#" :class="{ active: view !== 'main' }" @click.prevent="showMain">
+      <a href="#" class="retro-btn blue" @click.prevent="showMain">
         <i class="fa-solid fa-home"></i> 메인
       </a>
-      <button type="button" :class="{ active: toolModal === 'penalty' }" @click="openToolModal('penalty')">
-        <i class="fa-solid fa-circle-exclamation"></i> 벌칙
-      </button>
-      <button type="button" :class="{ active: toolModal === 'turn' }" @click="openToolModal('turn')">
-        <i class="fa-solid fa-route"></i> 순서
-      </button>
-      <a href="/community/"><i class="fa-regular fa-comment"></i> 낙서장</a>
+      <a href="/community/" class="retro-btn green"><i class="fa-regular fa-comment"></i> 낙서장</a>
       <template v-if="currentUser.isAuthenticated">
-        <a :href="currentUser.profileUrl"><i class="fa-regular fa-user"></i> {{ currentUser.username }}</a>
+        <a :href="currentUser.profileUrl" class="retro-btn yellow"><i class="fa-regular fa-user"></i> {{ currentUser.username }}</a>
         <form class="navbar-logout-form" @submit.prevent="logoutUser">
-          <button type="submit">로그아웃</button>
+          <button type="submit" class="retro-btn red">로그아웃</button>
         </form>
       </template>
       <template v-else>
-        <a href="/accounts/login/">로그인</a>
-        <a href="/accounts/signup/">회원가입</a>
+        <a href="/accounts/login/" class="retro-btn yellow">로그인</a>
+        <a href="/accounts/signup/" class="retro-btn red">회원가입</a>
       </template>
     </div>
   </nav>
 
   <main class="container">
     <section v-if="view === 'main'">
-      <div class="main-dashboard">
-        <aside class="recent-recommendations">
-          <div class="recent-header">
-            <h3>최근 추천</h3>
-            <button v-if="recentRecommendations.length" type="button" @click="clearRecentRecommendations">비우기</button>
-          </div>
-          <p v-if="!recentRecommendations.length" class="recent-empty">
-            아직 추천받은 게임이 없습니다.
-          </p>
-          <div v-for="session in recentRecommendations" :key="session.id" class="recent-session">
-            <p class="recent-situation">{{ session.situation }}</p>
-            <div
-              v-for="item in session.recommendations"
-              :key="`${session.id}-${item.game_id || item.title}`"
-              class="recent-game"
-              @click="openAiRecommendModal(item.title, { displayTitle: displayGameTitle(item) })"
-            >
-              <img v-if="item.image_url" :src="item.image_url" alt="board game cover" />
-              <div>
-                <strong>{{ displayGameTitle(item) }}</strong>
-                <span>{{ item.reason }}</span>
-              </div>
-              <button type="button" @click.stop="openReviewFromRecent(item.title, displayGameTitle(item))">리뷰</button>
-            </div>
-          </div>
-        </aside>
+      <div class="board-map-container">
+        <!-- SVG 궤적 복구 (그리드 반응형에 맞춰 배경처럼 늘어남) -->
+        <svg class="map-track-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
+          <path d="M 90 10 C 70 5, 20 0, 20 20 C 20 45, 50 35, 50 50 C 50 70, 20 65, 20 80 C 20 95, 60 85, 80 85" 
+                fill="none" stroke="var(--primary-color)" stroke-width="0.8" stroke-dasharray="2 2" stroke-linecap="round" opacity="0.6"/>
+        </svg>
 
-        <div class="main-hero">
-          <div style="margin-bottom: 3rem; position: relative;">
-            <i class="fa-solid fa-dice" style="font-size: 3rem; color: #a491bc;"></i>
-            <h1>뭐할게임?</h1>
-            <p class="subtitle">5명이서 할 건 없다고? 여기 있음</p>
-            <div style="margin-top: 10px; font-size: 0.8rem; color: #999;">※ 버그는 컨셉입니다.</div>
+        <!-- 1. Start (뭐할게임?) -->
+        <div class="map-tile tile-start">
+          <div class="tile-content">
+            <h2 class="start-title">START<br><span style="font-size:1.5rem">뭐할게임?</span></h2>
           </div>
+        </div>
 
-          <div class="hero-actions" style="display: flex; justify-content: center; margin-bottom: 3rem;">
-            <button class="btn btn-yellow" @click="openRecommendInputModal" style="padding: 1.5rem 3rem; font-size: 1.5rem; border-radius: 12px; box-shadow: 0 6px 0 #c28c40; width: 100%; max-width: 400px; animation: pulse 2s infinite;">
-              <i class="fa-solid fa-wand-magic-sparkles"></i> 보드게임 추천받기
+        <!-- 3. 최근 추천 (최근 본 게임) -->
+        <div class="map-tile tile-recent">
+          <div class="tile-header" style="justify-content: space-between;">
+            <h3><i class="fa-solid fa-clock-rotate-left"></i> 최근 본 게임</h3>
+            <button v-if="recentViewedGames.length" type="button" @click.stop="deleteCurrentRecentGame" style="font-size:0.85rem; padding: 4px 8px; border-radius: 4px; background: transparent; border: none; color: white; cursor: pointer;" title="현재 게임 기록 삭제">
+              <i class="fa-solid fa-trash-can"></i>
             </button>
           </div>
+          <div class="tile-content" style="padding: 0; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; position: relative;">
+            <p v-if="!recentViewedGames.length" class="recent-empty" style="font-size: 1.1rem; color: #888; text-align: center; padding: 20px;">아직 확인한 게임이 없습니다.</p>
+            <div v-else class="carousel-container" style="display: flex; align-items: center; justify-content: space-between; width: 100%; height: 100%;">
+              <button class="carousel-btn" @click.stop="prevRecentGame" :disabled="recentViewedGames.length <= 1" style="position: absolute; left: 8px; z-index: 10; background: rgba(255,255,255,0.85); border: none; border-radius: 50%; width: 32px; height: 32px; display: flex; justify-content: center; align-items: center; font-size: 1.1rem; color: var(--primary-color); cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.1);" :style="{ opacity: recentViewedGames.length <= 1 ? 0.3 : 1 }">
+                <i class="fa-solid fa-chevron-left"></i>
+              </button>
+              
+              <div class="carousel-item" @click="openAiRecommendModal(currentRecentGame.title)" style="flex: 1; height: 100%; display: flex; flex-direction: column; cursor: pointer; transition: transform 0.2s; overflow: hidden; padding: 10px; box-sizing: border-box;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'">
+                
+                <div class="carousel-image-container" style="flex: 1; min-height: 0; width: 100%; background-color: #f9f5ec; border-radius: 8px; display: flex; justify-content: center; align-items: center; overflow: hidden; margin-bottom: 8px;">
+                  <img v-if="currentRecentGame.imageUrl" :src="currentRecentGame.imageUrl" alt="게임 썸네일" style="width: 100%; height: 100%; object-fit: contain;" />
+                  <i v-else class="fa-solid fa-chess-board carousel-fallback-icon" style="font-size: 3rem; color: #d0c0a0;"></i>
+                </div>
+                
+                <div style="text-align: center; padding-bottom: 2px;">
+                  <div style="font-size: 1.1rem; font-weight: 900; color: #333; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 0 5px;">
+                    {{ currentRecentGame.title }}
+                  </div>
+                  <div style="font-size: 0.85rem; font-weight: bold; color: var(--primary-color); margin-top: 4px;">
+                    자세히 보기 <i class="fa-solid fa-arrow-right"></i>
+                  </div>
+                </div>
+                <div style="text-align: center; font-size: 0.7rem; color: #aaa; margin-top: 2px;">
+                  {{ currentRecentIndex + 1 }} / {{ recentViewedGames.length }}
+                </div>
+              </div>
+              
+              <button class="carousel-btn" @click.stop="nextRecentGame" :disabled="recentViewedGames.length <= 1" style="position: absolute; right: 8px; z-index: 10; background: rgba(255,255,255,0.85); border: none; border-radius: 50%; width: 32px; height: 32px; display: flex; justify-content: center; align-items: center; font-size: 1.1rem; color: var(--primary-color); cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.1);" :style="{ opacity: recentViewedGames.length <= 1 ? 0.3 : 1 }">
+                <i class="fa-solid fa-chevron-right"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 4. 마법의 추천 칸 (Main CTA) -->
+        <div class="map-tile tile-magic" @click="openRecommendInputModal">
+          <div class="tile-content magic-content">
+             <i class="fa-solid fa-wand-magic-sparkles giant-icon"></i>
+             <h2>보드게임 추천받기</h2>
+             <p>AI가 완벽한 게임을<br>찾아드립니다</p>
+             <div class="click-indicator">클릭!</div>
+          </div>
+        </div>
+
+        <!-- 5. 보드게임 순위 (전체 랭킹 활용) -->
+        <div class="map-tile tile-ranking" style="cursor: pointer;" @click="openRankingModal">
+          <div class="tile-header">
+            <h3><i class="fa-solid fa-trophy" style="color: gold;"></i> 보드게임 순위</h3>
+          </div>
+          <div class="tile-content" style="padding: 10px; height: 100%;">
+            <table class="games-table" style="margin: 0; width: 100%;">
+              <thead>
+                <tr style="border-bottom: 2px solid var(--primary-color);">
+                  <th style="width: 40px; text-align: center; padding-bottom: 5px; font-size: 0.9rem;">순위</th>
+                  <th style="text-align: left; padding-bottom: 5px; font-size: 0.9rem;">게임명</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="game in top5Games" :key="game.game_id" @click="openGameModal(game.game_id, game.title)" style="cursor: pointer;">
+                  <td style="text-align: center; font-weight: bold; padding: 8px 0;" :style="{ color: game.rank <= 3 ? 'red' : 'var(--text-light)' }">{{ game.rank }}</td>
+                  <td style="font-weight: bold; padding: 8px 0;">
+                    <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px; display: inline-block;">{{ game.title }}</span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+            <div style="text-align: center; margin-top: 10px; font-size: 0.85rem; color: var(--primary-color);">전체 순위 보기 <i class="fa-solid fa-arrow-pointer"></i></div>
+          </div>
+        </div>
 
       <!-- Trending Section -->
           <div class="trending-section" style="max-width: 800px; margin: 0 auto; text-align: left;">
@@ -101,21 +147,48 @@
             </div>
           </div>
         </div>
+
+        <!-- 7. 벌칙 뽑기 -->
+        <div class="map-tile tile-tool-penalty" @click="openToolModal('penalty')">
+          <div class="tile-content tool-content">
+            <div class="tool-emoji">💣</div>
+            <h3>벌칙 뽑기</h3>
+          </div>
+        </div>
+
+        <!-- 장식용 더미 칸들 -->
+        <div class="map-deco deco-1"><i class="fa-solid fa-dice"></i></div>
+        <div class="map-deco deco-2"><i class="fa-solid fa-question"></i></div>
+        <div class="map-deco deco-3"><i class="fa-solid fa-star"></i></div>
+        <div class="map-deco deco-4"><i class="fa-solid fa-chess-knight"></i></div>
+        <div class="map-deco deco-5"><i class="fa-solid fa-puzzle-piece"></i></div>
+
+        <!-- 배경 주사위 (그리드 빈칸 배치) -->
+        <div class="grid-bg-dice grid-dice-1"><i class="fa-solid fa-dice-one"></i></div>
+        <div class="grid-bg-dice grid-dice-2"><i class="fa-solid fa-dice-two"></i></div>
+        <div class="grid-bg-dice grid-dice-3"><i class="fa-solid fa-dice-three"></i></div>
+        <div class="grid-bg-dice grid-dice-4"><i class="fa-solid fa-dice-four"></i></div>
+        <div class="grid-bg-dice grid-dice-5"><i class="fa-solid fa-dice-five"></i></div>
+
       </div>
     </section>
   </main>
 
   <!-- Recommend Modals -->
   <div v-if="recommendModal.step > 0" class="modal-overlay" @click.self="closeRecommendModal">
-    <div class="modal-content wide">
-      <button class="modal-close" type="button" @click="closeRecommendModal">&times;</button>
+    <div class="modal-content retro-window" style="padding: 3px; max-width: 600px; width: 100%;">
+      <div class="retro-titlebar">
+        <span><i class="fa-solid fa-wand-magic-sparkles"></i> AI_보드게임_추천.exe</span>
+        <div class="retro-titlebar-close" @click="closeRecommendModal">X</div>
+      </div>
       
-      <!-- Step 1: Input -->
-      <template v-if="recommendModal.step === 1">
-        <h2 style="color: var(--primary-color); margin-bottom: 5px;"><i class="fa-solid fa-sliders"></i> 맞춤 상황 입력</h2>
-        <p style="color: var(--text-light); margin-bottom: 20px;">원하시는 조건만 선택해주세요. 나머지는 AI가 알아서 판단합니다.</p>
-        
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; text-align: left;">
+      <div class="retro-content-inner" style="padding: 20px;">
+        <!-- Step 1: Input -->
+        <template v-if="recommendModal.step === 1">
+          <h2 style="color: var(--primary-color); margin-bottom: 5px; text-align: center;"><i class="fa-solid fa-sliders"></i> 맞춤 상황 입력</h2>
+          <p style="color: var(--text-light); margin-bottom: 20px; text-align: center;">원하시는 조건만 선택해주세요. 나머지는 AI가 알아서 판단합니다.</p>
+          
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; text-align: left;">
           <div>
             <label style="font-weight: bold; font-size: 0.9rem;">MBTI</label>
             <div class="mbti-picker">
@@ -235,7 +308,44 @@
             </template>
             <p v-if="aiError" style="color: red; text-align: center;">오류: {{ aiError }}</p>
         </div>
-      </template>
+        </template>
+      </div>
+    </div>
+  </div>
+
+  <!-- Ranking Modal -->
+  <div v-if="rankingModalOpen" class="modal-overlay" @click.self="closeRankingModal">
+    <div class="modal-content retro-window" style="padding: 3px; width: 500px;">
+      <div class="retro-titlebar">
+        <span><i class="fa-solid fa-trophy"></i> 전체_보드게임_순위.exe</span>
+        <div class="retro-titlebar-close" @click="closeRankingModal">X</div>
+      </div>
+      <div class="retro-content-inner" style="padding: 20px;">
+        <h2 style="text-align: center; margin-bottom: 15px; color: var(--primary-color);">🏆 명예의 전당</h2>
+        <input type="text" v-model="rankingSearchQuery" class="input-field" placeholder="게임명 검색..." style="margin-bottom: 15px; width: 100%; border: 2px solid var(--primary-color);" />
+        
+        <div style="max-height: 400px; overflow-y: auto; border: 2px solid #ccc; background: #fff;">
+          <table class="games-table" style="width: 100%; margin: 0; border-collapse: collapse;">
+            <thead style="background: #eadecc; position: sticky; top: 0;">
+              <tr>
+                <th style="padding: 8px; text-align: center; border-bottom: 2px solid var(--primary-color);">순위</th>
+                <th style="padding: 8px; text-align: left; border-bottom: 2px solid var(--primary-color);">게임명</th>
+                <th style="padding: 8px; text-align: right; border-bottom: 2px solid var(--primary-color);">조회수</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="game in filteredRankings" :key="game.game_id" @click="openGameModal(game.game_id, game.title)" style="cursor: pointer; border-bottom: 1px solid #eee;">
+                <td style="padding: 10px; text-align: center; font-weight: bold;" :style="{ color: game.rank <= 3 ? 'red' : 'var(--text-light)' }">{{ game.rank }}</td>
+                <td style="padding: 10px; font-weight: bold;">{{ game.title }}</td>
+                <td style="padding: 10px; text-align: right; color: var(--text-light); font-size: 0.85rem;"><i class="fa-regular fa-eye"></i> {{ game.view_count || 0 }}</td>
+              </tr>
+              <tr v-if="filteredRankings.length === 0">
+                <td colspan="3" style="text-align: center; padding: 20px; color: var(--text-light);">검색 결과가 없습니다.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -417,32 +527,18 @@
     </div>
   </div>
 
-  <!-- B-grade Retro Ads (Bottom Right) -->
-  <div style="position: fixed; bottom: 20px; right: 20px; z-index: 999; display: flex; flex-direction: column; gap: 15px; pointer-events: none;">
-      <!-- Ad 1: Penalty -->
-      <div class="b-grade-ad" style="border: 3px outset #eadecc;" @click="openToolModal('penalty')">
-          <div style="background: #fff; border: 2px inset #eadecc; padding: 10px 5px;">
-              <div style="color: red; font-size: 0.75rem; font-weight: bold; margin-bottom: 4px; animation: blink 1s infinite;">[ 경 고 ]</div>
-              <div style="color: var(--primary-color); font-size: 0.9rem; font-weight: 900; margin-bottom: 10px; line-height: 1.3;">☠ 벌칙 안 뽑고<br>도망갈거임?</div>
-              <button style="background: var(--accent-color); color: white; border: 2px outset #eadecc; font-size: 0.85rem; font-weight: bold; width: 100%; padding: 4px 0; cursor: pointer; box-shadow: none;">벌칙 룰렛 ➔</button>
-          </div>
-      </div>
-
-      <!-- Ad 2: Turn -->
-      <div class="b-grade-ad" style="border: 3px dashed var(--secondary-color);" @click="openToolModal('turn')">
-          <div style="background: #fff; padding: 8px 5px; border: 1px solid var(--secondary-color);">
-              <div style="color: var(--primary-color); font-size: 0.9rem; font-weight: 900; margin-bottom: 10px; line-height: 1.3;">🪜 순서 정하고<br>보드게임하자!</div>
-              <button style="background: var(--secondary-color); color: #fff; border: 2px outset #eadecc; font-size: 0.85rem; font-weight: bold; width: 100%; padding: 4px 0; cursor: pointer; box-shadow: none;">순서 정하기 ➔</button>
-          </div>
-      </div>
-  </div>
 
   <div v-if="gameModal.open" class="modal-overlay" @click.self="closeGameDetail">
-    <div class="modal-content wide">
-      <button class="modal-close" type="button" @click="closeGameDetail">&times;</button>
-      <h2 style="color: var(--primary-color); margin-bottom: 5px;">{{ gameModal.title }}</h2>
-      <div v-if="gameModal.loading"><i class="fa-solid fa-spinner fa-spin"></i> 게임 정보를 불러오는 중...</div>
-      <div v-else style="text-align: left;">
+    <div class="modal-content wide retro-window" style="padding: 3px;">
+      <div class="retro-titlebar">
+        <span id="retroModalTitle">
+          <i class="fa-solid fa-gamepad"></i> {{ gameModal.title }}.exe
+        </span>
+        <div class="retro-titlebar-close" @click="closeGameDetail">X</div>
+      </div>
+      <div class="retro-content-inner" style="background:var(--bg-color); padding:1.5rem; text-align:center;">
+        <div v-if="gameModal.loading" style="margin: 2rem 0;"><i class="fa-solid fa-spinner fa-spin"></i> 게임 정보를 불러오는 중...</div>
+        <div v-else style="text-align: left;">
         <div class="detail-grid" style="margin-top: 20px;">
           <div style="flex: 1;">
             <div v-if="gameModal.details">
@@ -492,6 +588,7 @@
           </div>
         </div>
 
+        </div>
       </div>
     </div>
   </div>
@@ -536,31 +633,32 @@
 
 <script setup>
 import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
+import BoardBackground from './components/BoardBackground.vue'
+import TitleAnimation from './components/TitleAnimation.vue'
 
 const view = ref('main')
 const trendingGames = ref([])
 const trendingLoading = ref(false)
-const showAllTrending = ref(false)
 
-const currentTickerIndex = ref(0)
-let tickerInterval = null
-
-const visibleTrendingGames = computed(() => {
-  if (showAllTrending.value) {
-    return trendingGames.value.slice(0, 10).map((game, i) => ({ ...game, rank: i + 1 }))
-  } else {
-    if (trendingGames.value.length === 0) return []
-    const idx = currentTickerIndex.value
-    return [{ ...trendingGames.value[idx], rank: idx + 1 }]
-  }
+const top5Games = computed(() => {
+  return trendingGames.value.slice(0, 5).map((game, i) => ({ ...game, rank: i + 1 }))
 })
 
-function startTicker() {
-  tickerInterval = setInterval(() => {
-    if (trendingGames.value.length > 0 && !showAllTrending.value) {
-      currentTickerIndex.value = (currentTickerIndex.value + 1) % Math.min(10, trendingGames.value.length)
-    }
-  }, 2500)
+const rankingModalOpen = ref(false)
+const rankingSearchQuery = ref('')
+
+const filteredRankings = computed(() => {
+  const list = trendingGames.value.map((game, i) => ({ ...game, rank: i + 1 }))
+  if (!rankingSearchQuery.value) return list
+  return list.filter(game => game.title.toLowerCase().includes(rankingSearchQuery.value.toLowerCase()))
+})
+
+function openRankingModal() {
+  rankingModalOpen.value = true
+  rankingSearchQuery.value = ''
+}
+function closeRankingModal() {
+  rankingModalOpen.value = false
 }
 
 const recommendModal = reactive({
@@ -607,7 +705,48 @@ const recommendationSituation = computed(() => {
 const aiLoading = ref(false)
 const aiError = ref('')
 const aiRecommendations = ref([])
-const recentRecommendations = ref([])
+const recentViewedGames = ref([])
+const currentRecentIndex = ref(0)
+const currentRecentGame = computed(() => recentViewedGames.value[currentRecentIndex.value] || null)
+
+function nextRecentGame() {
+  if (recentViewedGames.value.length <= 1) return
+  currentRecentIndex.value = (currentRecentIndex.value + 1) % recentViewedGames.value.length
+}
+function prevRecentGame() {
+  if (recentViewedGames.value.length <= 1) return
+  currentRecentIndex.value = (currentRecentIndex.value - 1 + recentViewedGames.value.length) % recentViewedGames.value.length
+}
+function addRecentViewedGame(title) {
+  if (!title) return
+  const existingIndex = recentViewedGames.value.findIndex(g => g.title === title)
+  let imageUrl = ''
+  if (existingIndex !== -1) {
+    imageUrl = recentViewedGames.value[existingIndex].imageUrl || ''
+    recentViewedGames.value.splice(existingIndex, 1)
+  }
+  recentViewedGames.value.unshift({ id: Date.now(), title, imageUrl })
+  if (recentViewedGames.value.length > 20) recentViewedGames.value.pop()
+  localStorage.setItem('recent_viewed_games', JSON.stringify(recentViewedGames.value))
+  currentRecentIndex.value = 0
+}
+function updateRecentViewedGameImage(title, imageUrl) {
+  if (!imageUrl) return
+  const index = recentViewedGames.value.findIndex(g => g.title === title)
+  if (index !== -1 && !recentViewedGames.value[index].imageUrl) {
+    recentViewedGames.value[index].imageUrl = imageUrl
+    localStorage.setItem('recent_viewed_games', JSON.stringify(recentViewedGames.value))
+  }
+}
+function deleteCurrentRecentGame() {
+  if (recentViewedGames.value.length === 0) return
+  recentViewedGames.value.splice(currentRecentIndex.value, 1)
+  localStorage.setItem('recent_viewed_games', JSON.stringify(recentViewedGames.value))
+  if (currentRecentIndex.value >= recentViewedGames.value.length) {
+    currentRecentIndex.value = Math.max(0, recentViewedGames.value.length - 1)
+  }
+}
+
 const feedbackForms = reactive({})
 const currentUser = reactive({
   isAuthenticated: false,
@@ -708,7 +847,7 @@ const ladderRungs = computed(() => {
 const ladderPathPoints = computed(() => ladderPath.value.map((point) => `${point.x},${point.y}`).join(' '))
 
 onMounted(() => {
-  loadRecentRecommendations()
+  loadRecentViewedGames()
   fetchCurrentUser()
   fetchTrendingGames()
   openInitialToolFromUrl()
@@ -784,7 +923,7 @@ async function submitRecommend(options = {}) {
     }
     aiRecommendations.value = data.recommendations || []
     aiRecommendations.value.forEach((item) => ensureFeedbackForm(item.title))
-    saveRecentRecommendationSession(recommendationSituation.value, aiRecommendations.value)
+    recommendModal.step = 2
   } catch (error) {
     aiError.value = error.message
   } finally {
@@ -792,33 +931,18 @@ async function submitRecommend(options = {}) {
   }
 }
 
+
 function refreshRecommendations() {
   submitRecommend({ excludeCurrent: true })
 }
 
 function loadRecentRecommendations() {
+
   try {
-    recentRecommendations.value = JSON.parse(localStorage.getItem(RECENT_RECOMMENDATIONS_KEY) || '[]')
+    recentViewedGames.value = JSON.parse(localStorage.getItem('recent_viewed_games') || '[]')
   } catch {
-    recentRecommendations.value = []
+    recentViewedGames.value = []
   }
-}
-
-function saveRecentRecommendationSession(currentSituation, recommendations) {
-  if (!recommendations.length) return
-  const session = {
-    id: Date.now(),
-    situation: currentSituation,
-    recommendations: recommendations.slice(0, 3),
-    createdAt: new Date().toISOString()
-  }
-  recentRecommendations.value = [session, ...recentRecommendations.value].slice(0, 5)
-  localStorage.setItem(RECENT_RECOMMENDATIONS_KEY, JSON.stringify(recentRecommendations.value))
-}
-
-function clearRecentRecommendations() {
-  recentRecommendations.value = []
-  localStorage.removeItem(RECENT_RECOMMENDATIONS_KEY)
 }
 
 function getGuideCache() {
@@ -1204,12 +1328,16 @@ function ladderY(rowIndex) {
 
 async function openGameModal(gameId, title) {
   resetGameModal(title)
+  addRecentViewedGame(title)
   gameModal.loading = true
 
   try {
     const response = await fetch(`/boardgames/api/${gameId}/details/`)
     if (!response.ok) throw new Error('Details not found')
     gameModal.details = await response.json()
+    if (gameModal.details) {
+      updateRecentViewedGameImage(title, gameModal.details.image || gameModal.details.thumbnail || '')
+    }
     gameModal.loading = false
     fetchGameSmartGuide(gameId)
   } catch {
@@ -1244,8 +1372,12 @@ async function fetchGameSmartGuide(gameId) {
 }
 
 async function openAiRecommendModal(title, options = {}) {
+
   const modalTitle = options.displayTitle || title
   resetGameModal(`${modalTitle} (AI 추천)`)
+  
+  addRecentViewedGame(title)
+
   gameModal.loading = true
   gameModal.guideLoading = true
 
@@ -1264,6 +1396,9 @@ async function openAiRecommendModal(title, options = {}) {
     gameModal.details = data.details || null
     gameModal.summary = data.ai_summary || ''
     gameModal.youtubeVideoId = data.youtube_videoId || ''
+    if (gameModal.details) {
+      updateRecentViewedGameImage(title, gameModal.details.image || gameModal.details.thumbnail || '')
+    }
     setGuideCache(cacheKey, {
       details: gameModal.details,
       summary: gameModal.summary,
