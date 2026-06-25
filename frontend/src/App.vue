@@ -596,9 +596,11 @@
                   v-else-if="gameModal.youtubeVideoId"
                   width="100%"
                   height="100%"
-                  :src="`https://www.youtube.com/embed/${gameModal.youtubeVideoId}`"
+                  :src="`https://www.youtube-nocookie.com/embed/${gameModal.youtubeVideoId}?rel=0&modestbranding=1&playsinline=1`"
                   frameborder="0"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                   allowfullscreen
+                  referrerpolicy="strict-origin-when-cross-origin"
                   style="border-radius: 8px;"
                 ></iframe>
                 <span v-else>영상 없음</span>
@@ -904,6 +906,7 @@ const gameModal = reactive({
 const modalFeedbackTitle = computed(() => gameModal.title.replace(' (AI 추천)', '').trim())
 const RECENT_RECOMMENDATIONS_KEY = 'boardgame_recent_recommendations'
 const GAME_GUIDE_CACHE_KEY = 'boardgame_guide_cache'
+const GAME_GUIDE_CACHE_VERSION = 2
 
 function displayGameTitle(item) {
   return item?.display_title || item?.korean_title || item?.title || ''
@@ -1152,13 +1155,18 @@ function setGuideCache(key, value) {
   const cache = getGuideCache()
   cache[key] = {
     ...value,
+    cacheVersion: GAME_GUIDE_CACHE_VERSION,
     cachedAt: new Date().toISOString()
   }
   localStorage.setItem(GAME_GUIDE_CACHE_KEY, JSON.stringify(cache))
 }
 
 function getCachedGuide(key) {
-  return getGuideCache()[key] || null
+  const cached = getGuideCache()[key] || null
+  if (!cached || cached.cacheVersion !== GAME_GUIDE_CACHE_VERSION) {
+    return null
+  }
+  return cached
 }
 
 function hasCachedGuideContent(cached) {

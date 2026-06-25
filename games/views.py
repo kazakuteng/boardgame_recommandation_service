@@ -674,11 +674,30 @@ def _youtube_rule_video_id(query_title):
             q=f"{query_title} 보드게임 룰 설명",
             part="snippet",
             type="video",
-            maxResults=1,
+            maxResults=5,
+            videoEmbeddable="true",
+            videoSyndicated="true",
         )
         res = req.execute()
-        if res.get('items'):
-            return res['items'][0]['id']['videoId']
+        video_ids = [
+            item.get('id', {}).get('videoId')
+            for item in res.get('items', [])
+            if item.get('id', {}).get('videoId')
+        ]
+        if not video_ids:
+            return None
+
+        status_req = youtube.videos().list(
+            part="status",
+            id=",".join(video_ids),
+        )
+        status_res = status_req.execute()
+        embeddable_ids = {
+            item.get('id')
+            for item in status_res.get('items', [])
+            if item.get('status', {}).get('embeddable') is True
+        }
+        return next((video_id for video_id in video_ids if video_id in embeddable_ids), None)
     except Exception as exc:
         print("Youtube Error:", exc)
     return None
