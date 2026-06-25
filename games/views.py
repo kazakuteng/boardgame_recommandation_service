@@ -25,11 +25,7 @@ def _game_display_title(boardgame):
 # --- HTML & AJAX Views ---
 
 def index(request):
-    games = BoardGames.objects.all()[:50] # initial load limit
-    context = {
-        'games': games,
-    }
-    return render(request, 'games/index.html', context)
+    return render(request, 'vue_index.html')
 
 def filter_games(request):
     players = request.GET.get('players')

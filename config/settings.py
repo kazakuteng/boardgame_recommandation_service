@@ -30,19 +30,19 @@ BGG_TOKEN = env("BGG_TOKEN", default=env("BGG_KEY", default=""))
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-10=)x-b(wdnn3*f!^*d1(-zz7m439**h2xysh*+my055ixe#bc'
+SECRET_KEY = env('SECRET_KEY', default='django-insecure-10=)x-b(wdnn3*f!^*d1(-zz7m439**h2xysh*+my055ixe#bc')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = env.bool('DEBUG', default=True)
 
-ALLOWED_HOSTS = ['127.0.0.1', 'localhost']
+ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=['127.0.0.1', 'localhost'])
 
 CSRF_TRUSTED_ORIGINS = [
     'http://127.0.0.1:5173',
     'http://127.0.0.1:5174',
     'http://localhost:5173',
     'http://localhost:5174',
-]
+] + env.list('CSRF_TRUSTED_ORIGINS', default=[])
 
 
 # Application definition
@@ -139,6 +139,7 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 STATICFILES_DIRS = [BASE_DIR / 'static']
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
