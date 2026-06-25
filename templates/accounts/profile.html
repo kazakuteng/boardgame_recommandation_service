@@ -122,3 +122,48 @@
 </section>
 
 {% endblock %}
+
+{% block extra_script %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const followForm = document.getElementById('followForm')
+    if (!followForm) return
+
+    const followBtn = document.getElementById('followBtn')
+    const followersCount = document.getElementById('followersCount')
+    const followingsCount = document.getElementById('followingsCount')
+    const csrfInput = followForm.querySelector('input[name="csrfmiddlewaretoken"]')
+    const userId = followForm.dataset.userId
+
+    followForm.addEventListener('submit', async (event) => {
+        event.preventDefault()
+        if (!userId || followBtn.disabled) return
+
+        followBtn.disabled = true
+        try {
+            const response = await fetch(`/accounts/${userId}/follow/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': csrfInput ? csrfInput.value : '',
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+                credentials: 'same-origin',
+            })
+            const data = await response.json()
+            if (!response.ok) {
+                throw new Error(data.error || 'Follow request failed')
+            }
+
+            followBtn.textContent = data.is_followed ? '언팔로우' : '팔로우'
+            followBtn.classList.toggle('btn-brown', !data.is_followed)
+            if (followersCount) followersCount.textContent = data.followers_count
+            if (followingsCount) followingsCount.textContent = data.followings_count
+        } catch (error) {
+            console.error('Follow error:', error)
+        } finally {
+            followBtn.disabled = false
+        }
+    })
+})
+</script>
+{% endblock %}
