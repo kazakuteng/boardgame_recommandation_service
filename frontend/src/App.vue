@@ -292,13 +292,13 @@
 
   <!-- Ranking Modal -->
   <div v-if="rankingModalOpen" class="modal-overlay" @click.self="closeRankingModal">
-    <div class="modal-content retro-window" style="padding: 3px; width: 500px;">
+    <div class="modal-content retro-window" style="padding: 3px; max-width: 600px; width: 100%;">
       <div class="retro-titlebar">
         <span><i class="fa-solid fa-trophy"></i> 전체_보드게임_순위.exe</span>
         <div class="retro-titlebar-close" @click="closeRankingModal">X</div>
       </div>
       <div class="retro-content-inner" style="padding: 20px;">
-        <h2 style="text-align: center; margin-bottom: 15px; color: var(--primary-color);">🏆 명예의 전당</h2>
+        <h2 style="text-align: center; margin-bottom: 15px; color: var(--primary-color);">🏆 보드게임 순위</h2>
         <input type="text" v-model="rankingSearchQuery" class="input-field" placeholder="게임명 검색..." style="margin-bottom: 15px; width: 100%; border: 2px solid var(--primary-color);" />
         <div class="ranking-modal-summary">
           <span>{{ rankingPageStart }}~{{ rankingPageEnd }}위 / 총 {{ rankingTotalCount }}개</span>
@@ -326,14 +326,25 @@
             </tbody>
           </table>
         </div>
-        <div class="ranking-pagination">
-          <button class="btn btn-outline" type="button" @click="changeRankingPage(-1)" :disabled="rankingPage <= 1 || trendingLoading">
+        <div class="ranking-pagination" style="display: flex; justify-content: center; align-items: center; gap: 5px; margin-top: 15px;">
+          <button class="btn btn-outline" type="button" style="padding: 5px 10px;" @click="changeRankingPage(-1)" :disabled="rankingPage <= 1 || trendingLoading">
             <i class="fa-solid fa-chevron-left"></i>
-            이전 50개
           </button>
-          <span>{{ rankingPage }} / {{ rankingTotalPages }}</span>
-          <button class="btn btn-outline" type="button" @click="changeRankingPage(1)" :disabled="rankingPage >= rankingTotalPages || trendingLoading">
-            다음 50개
+          
+          <button 
+            v-for="page in visibleRankingPages" 
+            :key="page" 
+            class="btn btn-outline" 
+            :style="page === rankingPage 
+              ? 'padding: 5px 10px; min-width: 35px; text-align: center; background-color: #c8b09d; color: #333; font-weight: 900; border-style: inset;' 
+              : 'padding: 5px 10px; min-width: 35px; text-align: center; color: #333;'"
+            @click="page !== rankingPage ? fetchTrendingGames(page) : null"
+            :disabled="trendingLoading"
+          >
+            {{ page }}
+          </button>
+
+          <button class="btn btn-outline" type="button" style="padding: 5px 10px;" @click="changeRankingPage(1)" :disabled="rankingPage >= rankingTotalPages || trendingLoading">
             <i class="fa-solid fa-chevron-right"></i>
           </button>
         </div>
@@ -533,7 +544,14 @@
               <div v-if="hasDetailStats(gameModal.details)" class="modal-game-meta">
                 <span><i class="fa-solid fa-users"></i> {{ gameModal.details.min_players }}~{{ gameModal.details.max_players }}명</span>
                 <span><i class="fa-regular fa-clock"></i> {{ gameModal.details.playing_time }}분</span>
-                <span><i class="fa-solid fa-signal"></i> {{ Number(gameModal.details.weight).toFixed(1) }}</span>
+                <span style="display: inline-flex; align-items: center; gap: 6px;" title="보드게임 난이도 (Weight: 1~5)">
+                  <span style="font-weight: 800; color: #d9534f;">난이도(Weight)</span>
+                  <span style="color: #f39c12; font-size: 1.05em; letter-spacing: -1px; display: inline-flex; align-items: center;">
+                    <i v-for="i in 5" :key="i" class="fa-star" 
+                       :class="Number(gameModal.details.weight) >= i ? 'fa-solid' : (Number(gameModal.details.weight) >= i - 0.5 ? 'fa-solid fa-star-half-stroke' : 'fa-regular')"></i>
+                  </span>
+                  <span style="font-weight: bold; font-size: 0.95em;">{{ Number(gameModal.details.weight).toFixed(1) }}</span>
+                </span>
               </div>
             </div>
             <button class="btn btn-outline modal-review-toggle" type="button" @click="openModalReview">
@@ -687,6 +705,21 @@ const rankingPage = ref(1)
 const rankingPageSize = 50
 const rankingTotalCount = ref(0)
 const rankingTotalPages = ref(1)
+
+const visibleRankingPages = computed(() => {
+  const current = rankingPage.value;
+  const total = rankingTotalPages.value;
+  let start = Math.max(1, current - 2);
+  let end = Math.min(total, start + 4);
+  if (end - start < 4) {
+    start = Math.max(1, end - 4);
+  }
+  const pages = [];
+  for (let i = start; i <= end; i++) {
+    pages.push(i);
+  }
+  return pages;
+})
 
 const top5Games = computed(() => {
   return topRankingGames.value.slice(0, 5).map((game, i) => ({ ...game, rank: i + 1 }))
