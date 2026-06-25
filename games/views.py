@@ -3,6 +3,7 @@ import os
 import re
 import html
 import xml.etree.ElementTree as ET
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 import requests
 from django.shortcuts import render
 from django.http import JsonResponse
@@ -17,6 +18,10 @@ from googleapiclient.discovery import build
 
 RECOMMENDATION_BLOCKED_GAME_IDS = {521}
 BOARDGAME_FALLBACK_IMAGE_URL = '/static/boardgame_fallback.png'
+DEFAULT_GMS_ENDPOINT = (
+    'https://gms.ssafy.io/gmsapi/generativelanguage.googleapis.com/'
+    'v1beta/models/gemini-1.5-flash:generateContent'
+)
 
 
 def _game_display_title(boardgame):
@@ -487,6 +492,91 @@ def _bgg_xml_get(url, timeout=10):
     return response
 
 
+def _gms_endpoint_with_key(endpoint, gms_key):
+    if not gms_key or "gms.ssafy.io" not in endpoint:
+        return endpoint
+
+    parts = urlsplit(endpoint)
+    query = dict(parse_qsl(parts.query, keep_blank_values=True))
+    query.setdefault("key", gms_key)
+    return urlunsplit((parts.scheme, parts.netloc, parts.path, urlencode(query), parts.fragment))
+
+
+def _gms_uses_gemini(endpoint):
+    return "generativelanguage" in endpoint or "generateContent" in endpoint
+
+
+def _messages_to_gemini_text(messages):
+    chunks = []
+    for message in messages or []:
+        role = str(message.get("role") or "user").strip()
+        content = str(message.get("content") or "").strip()
+        if content:
+            chunks.append(f"[{role}]\n{content}")
+    return "\n\n".join(chunks).strip()
+
+
+def _gms_payload_for_endpoint(payload, endpoint):
+    if not _gms_uses_gemini(endpoint):
+        return payload
+
+    prompt = _messages_to_gemini_text(payload.get("messages"))
+    if not prompt:
+        prompt = str(payload.get("prompt") or "").strip()
+
+    gemini_payload = {
+        "contents": [
+            {
+                "parts": [
+                    {"text": prompt},
+                ],
+            },
+        ],
+    }
+    if "temperature" in payload:
+        gemini_payload["generationConfig"] = {
+            "temperature": payload["temperature"],
+        }
+    return gemini_payload
+
+
+def _gms_response_text(data):
+    if data.get("choices"):
+        return data["choices"][0]["message"]["content"]
+
+    candidates = data.get("candidates") or []
+    if candidates:
+        parts = candidates[0].get("content", {}).get("parts", [])
+        text_parts = [str(part.get("text") or "") for part in parts if part.get("text")]
+        if text_parts:
+            return "\n".join(text_parts)
+
+    raise KeyError("GMS response did not include generated text.")
+
+
+def _gms_post(payload, timeout=60):
+    gms_key = os.environ.get('GMS_KEY', '').strip()
+    if not gms_key:
+        raise ValueError("GMS_KEY is not configured.")
+
+    gms_endpoint = os.environ.get(
+        'GMS_ENDPOINT',
+        DEFAULT_GMS_ENDPOINT,
+    ).strip()
+    headers = {
+        "Content-Type": "application/json",
+    }
+    if not _gms_uses_gemini(gms_endpoint):
+        headers["Authorization"] = f"Bearer {gms_key}"
+
+    return requests.post(
+        _gms_endpoint_with_key(gms_endpoint, gms_key),
+        json=_gms_payload_for_endpoint(payload, gms_endpoint),
+        headers=headers,
+        timeout=timeout,
+    )
+
+
 def _cache_bgg_image(boardgame):
     if boardgame.thumbnail_url or boardgame.image_url:
         return boardgame.thumbnail_url or boardgame.image_url
@@ -546,7 +636,7 @@ def _attach_recommendation_images(items):
 def _youtube_rule_video_id(query_title):
     youtube_api_key = os.environ.get('YOUTUBE_API_KEY', '')
     if not youtube_api_key:
-        return "dQw4w9WgXcQ"
+        return None
 
     try:
         youtube = build('youtube', 'v3', developerKey=youtube_api_key)
@@ -801,19 +891,10 @@ JSON 외의 문자는 출력하지 마세요.
         ],
         "temperature": 0.1,
     }
-    headers = {
-        "Content-Type": "application/json",
-        "Authorization": f"Bearer {gms_key}",
-    }
-    gms_endpoint = os.environ.get(
-        'GMS_ENDPOINT',
-        'https://gms.ssafy.io/gmsapi/api.openai.com/v1/chat/completions',
-    )
-
     try:
-        res = requests.post(gms_endpoint, json=payload, headers=headers, timeout=45)
+        res = _gms_post(payload, timeout=45)
         res.raise_for_status()
-        raw_summary = res.json()['choices'][0]['message']['content']
+        raw_summary = _gms_response_text(res.json())
         payload = _normalize_rule_summary_payload(
             _extract_json_object(raw_summary),
             _game_display_title(boardgame),
@@ -909,7 +990,6 @@ def situation_recommend(request):
         game_list_str = "\n".join(candidate_lines)
 
         gms_key = os.environ.get('GMS_KEY', '')
-        gms_endpoint = os.environ.get('GMS_ENDPOINT', 'https://gms.ssafy.io/gmsapi/api.openai.com/v1/chat/completions')
 
         ai_choices = []
         if gms_key:
@@ -946,16 +1026,10 @@ MBTI가 추천 판단에 도움이 된 경우에만 한 문장 안에서 자연�
                 ],
                 "temperature": 0.2,
             }
-            headers = {
-                "Content-Type": "application/json",
-                "Authorization": f"Bearer {gms_key}"
-            }
-
             try:
-                res = requests.post(gms_endpoint, json=payload, headers=headers, timeout=60)
+                res = _gms_post(payload, timeout=60)
                 res.raise_for_status()
-                ai_data = res.json()
-                ai_choices = _extract_json_array(ai_data['choices'][0]['message']['content'])
+                ai_choices = _extract_json_array(_gms_response_text(res.json()))
             except Exception as e:
                 print("GMS recommendation fallback:", e)
 

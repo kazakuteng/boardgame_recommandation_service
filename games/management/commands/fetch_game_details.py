@@ -29,6 +29,11 @@ class Command(BaseCommand):
             help="Refresh games that already have details.",
         )
         parser.add_argument(
+            "--missing-images",
+            action="store_true",
+            help="Refresh games that have details but no cached BGG image.",
+        )
+        parser.add_argument(
             "--sleep",
             type=float,
             default=1.5,
@@ -66,7 +71,9 @@ class Command(BaseCommand):
             queryset = queryset.filter(party_rank__isnull=False).order_by("party_rank", "rank")
         elif options["category"] == "family":
             queryset = queryset.filter(family_rank__isnull=False).order_by("family_rank", "rank")
-        if not options["refresh"]:
+        if options["missing_images"]:
+            queryset = queryset.filter(thumbnail_url="", image_url="")
+        elif not options["refresh"]:
             queryset = queryset.exclude(details__isnull=False)
         if not options["all"]:
             queryset = queryset[: options["limit"]]
