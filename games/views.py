@@ -20,7 +20,7 @@ RECOMMENDATION_BLOCKED_GAME_IDS = {521}
 BOARDGAME_FALLBACK_IMAGE_URL = '/static/boardgame_fallback.png'
 DEFAULT_GMS_ENDPOINT = (
     'https://gms.ssafy.io/gmsapi/generativelanguage.googleapis.com/'
-    'v1beta/models/gemini-1.5-flash:generateContent'
+    'v1beta/models/gemini-3.5-flash:generateContent'
 )
 
 
