@@ -577,6 +577,16 @@ def _gms_post(payload, timeout=60):
     )
 
 
+def _raise_for_gms_status(response):
+    if response.status_code < 400:
+        return
+
+    body = str(response.text or '').strip().replace('\n', ' ')
+    if len(body) > 500:
+        body = f"{body[:500]}..."
+    raise RuntimeError(f"GMS HTTP {response.status_code}: {body}")
+
+
 def _cache_bgg_image(boardgame):
     if boardgame.thumbnail_url or boardgame.image_url:
         return boardgame.thumbnail_url or boardgame.image_url
@@ -916,6 +926,94 @@ JSON 외의 문자는 출력하지 마세요.
     return _rule_summary_to_text(payload), payload
 
 
+def _rule_summary_for_game(boardgame, details=None):
+    stored = RuleSummary.objects.filter(boardgame=boardgame).first()
+    if stored:
+        summary, payload = _stored_rule_summary(stored, _game_display_title(boardgame))
+        if summary:
+            return summary, payload
+
+    gms_key = os.environ.get('GMS_KEY', '')
+    if not gms_key:
+        payload = _fallback_rule_summary_payload(boardgame, details)
+        return _rule_summary_to_text(payload), payload
+
+    context = _fetch_bgg_rule_context(boardgame)
+    if not details:
+        details = GameDetails.objects.filter(boardgame=boardgame).first()
+
+    detail_line = "상세 정보 없음"
+    if details:
+        detail_line = (
+            f"인원 {details.min_players}~{details.max_players}명, "
+            f"시간 {details.playing_time}분, BGG weight {details.weight:.2f}"
+        )
+
+    prompt = f"""아래 근거만 사용해서 보드게임 룰 요약을 한국어 UI 카드용 JSON으로 작성해 주세요.
+근거에 없는 규칙, 점수 계산, 예외 규칙은 만들지 마세요.
+JSON 이외의 문자는 출력하지 마세요.
+
+필수 형식:
+{{
+  "theme_intro": "테마를 소개하는 짧은 설명",
+  "objective": "승리 목표",
+  "flow": ["준비 또는 라운드 시작", "주요 액션", "라운드 종료 또는 점수 확인"],
+  "recommendation_reason": "이 게임이 어떤 사람에게 맞는지 한 줄"
+}}
+
+[게임]
+한국어 제목: {_game_display_title(boardgame)}
+영문 제목: {boardgame.title}
+{detail_line}
+
+[BGG 설명]
+{context.get('description') or '설명 없음'}
+
+[Mechanics]
+{', '.join(context.get('mechanics') or []) or '정보 없음'}
+
+[Categories]
+{', '.join(context.get('categories') or []) or '정보 없음'}"""
+
+    payload = {
+        "model": "gpt-4o-mini",
+        "messages": [
+            {
+                "role": "system",
+                "content": (
+                    "당신은 보드게임 룰을 UI 카드에 들어갈 짧은 한국어로 정리하는 편집자입니다. "
+                    "목표는 한 문장, 진행은 3단계, 추천 이유는 한 문장으로 씁니다."
+                ),
+            },
+            {"role": "user", "content": prompt},
+        ],
+        "temperature": 0.1,
+    }
+    try:
+        res = _gms_post(payload, timeout=45)
+        _raise_for_gms_status(res)
+        raw_summary = _gms_response_text(res.json())
+        payload = _normalize_rule_summary_payload(
+            _extract_json_object(raw_summary),
+            _game_display_title(boardgame),
+        )
+        RuleSummary.objects.update_or_create(
+            boardgame=boardgame,
+            defaults={
+                "summary": json.dumps(payload, ensure_ascii=False),
+                "source": "ai_bgg_context",
+                "model_name": "gpt-4o-mini",
+                "is_verified": False,
+            },
+        )
+        return _rule_summary_to_text(payload), payload
+    except Exception as exc:
+        print("Rule summary generation error:", exc)
+
+    payload = _fallback_rule_summary_payload(boardgame, details)
+    return _rule_summary_to_text(payload), payload
+
+
 def recommend_game(request, game_id):
     try:
         game = BoardGames.objects.get(game_id=game_id)
@@ -1074,6 +1172,324 @@ MBTI가 추천 판단에 도움이 된 경우에만 한 문장 안에서 자연�
         })
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
+
+
+def _parse_player_range(value):
+    text = _choice(value, '')
+    numbers = [int(number) for number in re.findall(r'\d+', text)]
+    if not numbers:
+        return None
+    if len(numbers) >= 2:
+        return min(numbers[0], numbers[1]), max(numbers[0], numbers[1])
+    return numbers[0], numbers[0]
+
+
+def _parse_time_range(value):
+    text = _choice(value, '').lower()
+    if not text:
+        return None, None
+    numbers = [int(number) for number in re.findall(r'\d+', text)]
+    if not numbers:
+        return None, None
+
+    number = numbers[0]
+    minutes = number * 60 if '시간' in text or 'hour' in text else number
+    if '30' in text:
+        minutes = 30
+    elif '1시간' in text or '1 hour' in text:
+        minutes = 75
+    elif '2시간' in text or '2 hour' in text:
+        minutes = 120
+
+    if '이상' in text or 'over' in text or 'more' in text:
+        return max(30, minutes - 30), None
+    return None, minutes
+
+
+def _difficulty_bounds(value, relaxed=False):
+    text = _choice(value, '').lower()
+    if any(keyword in text for keyword in ['쉬움', '초보', '입문', 'easy', 'beginner']):
+        return None, 2.0 if relaxed else 1.8
+    if any(keyword in text for keyword in ['보통', '중간', 'medium', 'normal']):
+        return 1.6 if relaxed else 1.8, 2.8 if relaxed else 2.6
+    if any(keyword in text for keyword in ['어려움', '고수', 'hard', 'expert']):
+        return 2.6 if relaxed else 2.8, None
+    return None, None
+
+
+def _theme_terms(theme):
+    text = _choice(theme, '').lower()
+    if not text:
+        return []
+    terms = set(re.findall(r'[0-9a-zA-Z가-힣]+', text))
+    aliases = {
+        '동물': ['동물', 'animal', 'animals', 'zoo', 'bird', 'wingspan', 'ark nova', 'cat', 'dog'],
+        '우주': ['우주', 'space', 'mars', 'galaxy', 'terraforming'],
+        '농사': ['농사', '농장', 'farm', 'farming', 'agricola', 'harvest'],
+        '추리': ['추리', 'detective', 'mystery', 'crime', 'clue'],
+        '판타지': ['판타지', 'fantasy', 'magic', 'wizard', 'dragon', 'dungeon'],
+        '웃긴': ['웃긴', '유머', 'funny', 'party', 'word', 'drawing'],
+    }
+    for key, values in aliases.items():
+        if key in text or any(value in text for value in values):
+            terms.update(values)
+    return [term for term in terms if len(term) >= 2]
+
+
+def _alias_terms(value, aliases_by_key=None):
+    text = _choice(value, '').lower()
+    if not text:
+        return []
+    terms = set(re.findall(r'[0-9a-zA-Z가-힣]+', text))
+    aliases = {
+        '파티': ['파티', 'party', 'word', 'drawing', 'codenames', 'dixit', 'just one'],
+        '마피아': ['마피아', 'mafia', 'bluff', 'deception', 'hidden role', 'secret'],
+        '협력': ['협력', 'cooperative', 'coop', 'pandemic', 'crew', 'forbidden'],
+        '전략': ['전략', 'strategy', 'brass', 'terraforming', 'gaia', 'ark nova'],
+    }
+    for key, values in aliases.items():
+        if key in text or any(value in text for value in values):
+            terms.update(values)
+    return [term for term in terms if len(term) >= 2]
+
+
+def _candidate_sort_key(detail, difficulty, preference):
+    difficulty_text = _choice(difficulty, '').lower()
+    preference_text = _choice(preference, '').lower()
+    rank = detail.boardgame.rank or 999999
+    weight = detail.weight if detail.weight is not None else 0
+    party_rank = _rank_signal(detail.boardgame.party_rank)
+    family_rank = _rank_signal(detail.boardgame.family_rank)
+
+    if any(keyword in preference_text for keyword in ['파티', '마피아', '블러핑', 'party', 'mafia', 'bluff']):
+        return party_rank, family_rank, weight, rank
+    if any(keyword in difficulty_text for keyword in ['쉬움', '초보', '입문', 'easy']):
+        return family_rank, party_rank, weight, rank
+    if any(keyword in difficulty_text for keyword in ['보통', 'medium']):
+        return abs(weight - 2.2), rank
+    if any(keyword in difficulty_text for keyword in ['어려움', '고수', 'hard']):
+        return abs(weight - 3.2), rank
+    return rank, weight
+
+
+def _candidate_preference_score(detail, preference):
+    preference_text = _choice(preference, '').lower()
+    terms = _alias_terms(preference_text)
+    score = _title_keyword_score(detail, terms)
+    party_rank = _rank_signal(detail.boardgame.party_rank)
+    family_rank = _rank_signal(detail.boardgame.family_rank)
+    weight = detail.weight or 0
+
+    if any(keyword in preference_text for keyword in ['파티', '마피아', '블러핑', 'party', 'mafia', 'bluff']):
+        if party_rank < 999999:
+            score += 4
+    if any(keyword in preference_text for keyword in ['가족', 'family']):
+        if family_rank < 999999:
+            score += 3
+    if any(keyword in preference_text for keyword in ['전략', 'strategy']):
+        if weight >= 2.2:
+            score += min(3, (weight - 2.0) * 1.5)
+    return min(score, 10)
+
+
+def _build_recommend_candidates(players, time, difficulty, preference, theme=None, exclude_game_ids=None, limit=60, rank_limit=3000, profile=None):
+    base = (
+        GameDetails.objects
+        .select_related('boardgame')
+        .filter(
+            boardgame__rank__lte=rank_limit,
+            playing_time__gt=0,
+            weight__gt=0,
+        )
+        .exclude(boardgame__korean_title='')
+        .exclude(boardgame_id__in=RECOMMENDATION_BLOCKED_GAME_IDS)
+        .order_by('boardgame__rank')
+    )
+    player_range = _parse_player_range(players)
+    time_range = _parse_time_range(time)
+    difficulty_range = _difficulty_bounds(difficulty, relaxed=False)
+    relaxed_difficulty = _difficulty_bounds(difficulty, relaxed=True)
+    excluded_ids = set(exclude_game_ids or [])
+    if profile:
+        excluded_ids.update(profile.get('reviewed_ids') or set())
+        excluded_ids.update(profile.get('disliked_ids') or set())
+
+    candidates_by_id = {}
+
+    def add_candidates(queryset, stage_bonus=0):
+        sorted_items = sorted(
+            queryset[:rank_limit],
+            key=lambda item: (
+                stage_bonus,
+                _combined_candidate_sort_key(item, difficulty, preference, profile, theme),
+            ),
+        )
+        for detail in sorted_items:
+            game_id = detail.boardgame.game_id
+            if game_id in excluded_ids or game_id in candidates_by_id:
+                continue
+            candidates_by_id[game_id] = detail
+            if len(candidates_by_id) >= limit:
+                return True
+        return False
+
+    strict = _apply_recommend_filters(base, player_range, time_range, difficulty_range)
+    if add_candidates(strict, 0):
+        return list(candidates_by_id.values())
+
+    relaxed = _apply_recommend_filters(base, player_range, time_range, relaxed_difficulty)
+    if add_candidates(relaxed, 1):
+        return list(candidates_by_id.values())
+
+    no_difficulty = _apply_recommend_filters(base, player_range, time_range, (None, None))
+    if add_candidates(no_difficulty, 2):
+        return list(candidates_by_id.values())
+
+    no_time = _apply_recommend_filters(base, player_range, (None, None), relaxed_difficulty)
+    if add_candidates(no_time, 3):
+        return list(candidates_by_id.values())
+
+    player_only = _apply_recommend_filters(base, player_range, (None, None), (None, None))
+    if add_candidates(player_only, 4):
+        return list(candidates_by_id.values())
+
+    add_candidates(base, 5)
+    return list(candidates_by_id.values())
+
+
+def _recommendation_prompt(candidates, mbti, players, time, difficulty, preference, theme, ai_comment, profile):
+    candidate_lines = []
+    for detail in candidates:
+        candidate_lines.append(
+            f"- game_id={detail.boardgame.game_id} | {_game_display_title(detail.boardgame)} ({detail.boardgame.title}) | "
+            f"players {detail.min_players}-{detail.max_players} | time {detail.playing_time}m | "
+            f"weight {detail.weight:.2f} | rank {detail.boardgame.rank} | "
+            f"party {detail.boardgame.party_rank or 'none'} | family {detail.boardgame.family_rank or 'none'} | "
+            f"theme {_candidate_theme_score(detail, theme):.1f} | preference {_candidate_preference_score(detail, preference):.1f} | "
+            f"views {detail.boardgame.view_count or 0} | user {_candidate_personal_score(detail, profile):.1f}"
+        )
+
+    situation = (
+        f"MBTI: {mbti}, 인원: {players}, 시간: {time}, 난이도: {difficulty}, "
+        f"성향: {preference}, 테마: {theme}"
+    )
+    if ai_comment:
+        situation = f"{situation}, 추가 요청: {ai_comment[:300]}"
+
+    system_prompt = (
+        "당신은 보드게임 추천 큐레이터입니다. 서버가 검증한 후보 목록 안의 game_id만 고르세요. "
+        "인원, 시간, 난이도, 성향, 테마 조건을 MBTI보다 우선하세요. "
+        "JSON 배열만 출력하세요."
+    )
+    user_prompt = f"""[후보 목록]
+{chr(10).join(candidate_lines)}
+
+[사용자 조건]
+{situation}
+
+[사용자 리뷰 경향]
+{_personalization_prompt(profile)}
+
+가장 잘 맞는 게임을 최대 3개 고르세요.
+추천 이유에는 조건과 맞는 근거를 1~2문장으로 구체적으로 적으세요.
+형식: [{{"game_id": 123, "reason": "..."}}]"""
+    return system_prompt, user_prompt
+
+
+@api_view(['POST'])
+def situation_recommend(request):
+    try:
+        data = request.data
+
+        mbti = _choice(data.get('mbti'))
+        players = _choice(data.get('players'))
+        time = _choice(data.get('time'))
+        difficulty = _choice(data.get('difficulty'))
+        preference = _choice(data.get('preference'))
+        theme = _choice(data.get('theme'))
+        ai_comment = _choice(data.get('ai_comment'), '')
+        exclude_game_ids = set()
+        for raw_id in data.get('exclude_game_ids') or []:
+            try:
+                exclude_game_ids.add(int(raw_id))
+            except (TypeError, ValueError):
+                continue
+
+        profile = _user_recommendation_profile(request.user)
+        candidates = _build_recommend_candidates(
+            players,
+            time,
+            difficulty,
+            preference,
+            theme=theme,
+            exclude_game_ids=exclude_game_ids,
+            profile=profile,
+        )
+        if not candidates:
+            return JsonResponse({'error': '추천에 사용할 후보가 부족합니다. 조건을 조금 완화해 주세요.'}, status=404)
+
+        candidate_by_id = {detail.boardgame.game_id: detail for detail in candidates}
+        ai_choices = []
+        if os.environ.get('GMS_KEY', ''):
+            system_prompt, user_prompt = _recommendation_prompt(
+                candidates, mbti, players, time, difficulty, preference, theme, ai_comment, profile
+            )
+            payload = {
+                "model": "gpt-4o-mini",
+                "messages": [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
+                "temperature": 0.2,
+            }
+            try:
+                res = _gms_post(payload, timeout=60)
+                _raise_for_gms_status(res)
+                ai_choices = _extract_json_array(_gms_response_text(res.json()))
+            except Exception as exc:
+                print("GMS recommendation fallback:", exc)
+
+        result = []
+        used_ids = set()
+        title_to_candidate = {detail.boardgame.title.strip().lower(): detail for detail in candidates}
+        title_to_candidate.update({
+            detail.boardgame.korean_title.strip().lower(): detail
+            for detail in candidates
+            if detail.boardgame.korean_title
+        })
+
+        for item in ai_choices:
+            raw_game_id = item.get('game_id') or item.get('id')
+            detail = None
+            try:
+                detail = candidate_by_id.get(int(raw_game_id))
+            except (TypeError, ValueError):
+                title = str(item.get('title', '')).strip().lower()
+                detail = title_to_candidate.get(title)
+
+            if not detail or detail.boardgame.game_id in used_ids:
+                continue
+
+            reason = str(item.get('reason', '')).strip() or _fallback_reason(detail, difficulty)
+            result.append(_recommendation_item(detail, reason[:500]))
+            used_ids.add(detail.boardgame.game_id)
+            if len(result) == 3:
+                break
+
+        for detail in candidates:
+            if len(result) == 3:
+                break
+            if detail.boardgame.game_id in used_ids:
+                continue
+            result.append(_recommendation_item(detail, _fallback_reason(detail, difficulty)))
+            used_ids.add(detail.boardgame.game_id)
+
+        return JsonResponse({
+            'recommendations': result,
+            'candidate_count': len(candidates),
+        })
+    except Exception as exc:
+        return JsonResponse({'error': str(exc)}, status=500)
 
 
 @api_view(['POST'])
