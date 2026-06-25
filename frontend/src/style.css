@@ -1163,6 +1163,12 @@ h1 {
   color: #fff;
 }
 
+.youtube-open-link {
+  width: 100%;
+  box-sizing: border-box;
+  margin: 10px 0 0;
+}
+
 @media (max-width: 820px) {
   .navbar {
     padding: 1rem;

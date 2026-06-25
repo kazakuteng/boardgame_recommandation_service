@@ -604,6 +604,15 @@
                 <span v-else>영상 없음</span>
               </div>
             </section>
+            <a
+              v-if="gameModal.youtubeVideoId"
+              class="btn btn-red youtube-open-link"
+              :href="`https://www.youtube.com/watch?v=${gameModal.youtubeVideoId}`"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <i class="fa-brands fa-youtube"></i> Open YouTube
+            </a>
           </div>
 
         <div class="community-share-box" style="margin-top: 16px; padding: 15px; background: var(--box-bg); border-radius: 8px;">
