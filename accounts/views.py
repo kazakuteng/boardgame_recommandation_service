@@ -1,3 +1,5 @@
+import re
+
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth import get_user_model
 from django.http import JsonResponse
@@ -8,9 +10,74 @@ from django.contrib.auth.forms import PasswordChangeForm
 from django.contrib.auth import login as auth_login
 from django.contrib.auth import logout as auth_logout
 from django.contrib.auth import update_session_auth_hash
+from django.db.models import Q
 from community.models import Article
-from games.models import RecommendationFeedback
+from games.models import BoardGames, RecommendationFeedback
 from .forms import AccountUpdateForm, CustomAuthenticationForm, CustomUserCreationForm, ProfileUpdateForm
+
+
+def _normalize_game_title(value):
+    return re.sub(r'[\W_]+', '', str(value or '')).casefold()
+
+
+def _tag_search_terms(tag):
+    return [
+        term
+        for term in re.split(r'[\s:：\-–—_/]+', str(tag or ''))
+        if len(term.strip()) >= 2
+    ]
+
+
+def _find_favorite_game_for_tag(tag):
+    normalized_tag = _normalize_game_title(tag)
+    if not normalized_tag:
+        return None
+
+    exact_match = (
+        BoardGames.objects
+        .filter(Q(title__iexact=tag) | Q(korean_title__iexact=tag))
+        .order_by('rank')
+        .first()
+    )
+    if exact_match:
+        return exact_match
+
+    query = Q(title__icontains=tag) | Q(korean_title__icontains=tag)
+    for term in _tag_search_terms(tag):
+        query |= Q(title__icontains=term) | Q(korean_title__icontains=term)
+
+    candidates = BoardGames.objects.filter(query).order_by('rank')[:50]
+    best_partial = None
+    for game in candidates:
+        title_key = _normalize_game_title(game.title)
+        korean_key = _normalize_game_title(game.korean_title)
+        if normalized_tag in {title_key, korean_key}:
+            return game
+        if (
+            normalized_tag
+            and not best_partial
+            and (
+                normalized_tag in title_key
+                or normalized_tag in korean_key
+                or title_key in normalized_tag
+                or korean_key in normalized_tag
+            )
+        ):
+            best_partial = game
+    return best_partial
+
+
+def _favorite_game_cards(user):
+    cards = []
+    for tag in user.favorite_game_tag_list:
+        game = _find_favorite_game_for_tag(tag)
+        cards.append({
+            'tag': tag,
+            'game': game,
+            'display_title': (game.korean_title or game.title) if game else tag,
+            'image_url': (game.thumbnail_url or game.image_url) if game else '',
+        })
+    return cards
 
 def login(request):
     if request.user.is_authenticated:
@@ -56,6 +123,7 @@ def profile(request, user_pk):
         'person': person,
         'articles': articles,
         'recommendation_feedbacks': recommendation_feedbacks,
+        'favorite_game_cards': _favorite_game_cards(person),
         'is_owner': request.user.is_authenticated and request.user == person,
     }
     return render(request, 'accounts/profile.html', context)

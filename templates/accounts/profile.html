@@ -9,7 +9,7 @@
                 <div class="profile-top" style="margin-bottom: 1rem; text-align: center;">
                     <div class="profile-avatar" style="margin-bottom: 0.5rem; color: var(--primary-color); display: inline-block; position: relative;">
                         {% if person.profile_image %}
-                            <img id="avatarPreview" src="{{ person.profile_image.url }}" alt="{{ person.username }} 프로필사진" style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 3px solid var(--accent-color); font-size: 0.8rem;" onerror="this.onerror=null; this.outerHTML='<i class=\'fa-solid fa-circle-user\' style=\'font-size: 80px;\'></i>';">
+                            <img id="avatarPreview" src="{{ person.profile_image.url }}" alt="{{ person.username }} profile image" style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 3px solid var(--accent-color); font-size: 0.8rem;" onerror="this.onerror=null; this.outerHTML='<i class=\'fa-solid fa-circle-user\' style=\'font-size: 80px;\'></i>';"/>
                         {% else %}
                             <i id="avatarPreviewIcon" class="fa-solid fa-circle-user" style="font-size: 80px;"></i>
                         {% endif %}
@@ -55,10 +55,20 @@
             <!-- Favorite Game at bottom of Col 1 -->
             <div style="text-align: left; margin-top: 1rem; padding-top: 1rem; border-top: 1px dashed #ccc;">
                 <h3 style="font-size: 1rem; color: #5bc0de; margin-bottom: 0.5rem;"><i class="fa-solid fa-dice"></i> 최애 보드게임</h3>
-                {% if person.favorite_game_tag_list %}
-                    <div class="favorite-game-list" style="display: flex; flex-wrap: wrap; gap: 6px;">
-                        {% for tag in person.favorite_game_tag_list %}
-                            <span style="font-size: 0.8rem; padding: 2px 8px; border: 1px solid #5bc0de; color: #5bc0de; background: #fff;">#{{ tag }}</span>
+                {% if favorite_game_cards %}
+                    <div class="favorite-game-list" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 8px;">
+                        {% for card in favorite_game_cards %}
+                            <div style="border: 1px solid #5bc0de; background: #fff; padding: 6px; min-width: 0;">
+                                <div style="height: 88px; display: flex; align-items: center; justify-content: center; background: #f9f5ec; overflow: hidden; margin-bottom: 5px;">
+                                    {% if card.image_url %}
+                                        <img src="{{ card.image_url }}" alt="{{ card.display_title }} cover" style="width: 100%; height: 100%; object-fit: cover;" loading="lazy">
+                                    {% else %}
+                                        <i class="fa-solid fa-chess-board" style="font-size: 2rem; color: #d0c0a0;"></i>
+                                    {% endif %}
+                                </div>
+                                <strong style="display: block; font-size: 0.72rem; color: #333; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="{{ card.display_title }}">{{ card.display_title }}</strong>
+                                <span style="display: block; font-size: 0.68rem; color: #5bc0de; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="#{{ card.tag }}">#{{ card.tag }}</span>
+                            </div>
                         {% endfor %}
                     </div>
                 {% else %}

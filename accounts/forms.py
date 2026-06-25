@@ -1,3 +1,5 @@
+import re
+
 from django import forms
 from django.contrib.auth.forms import AuthenticationForm, UserChangeForm, UserCreationForm
 from django.contrib.auth import get_user_model
@@ -101,16 +103,21 @@ class ProfileUpdateForm(forms.ModelForm):
             self.initial['favorite_game_tags'] = ' '.join(f'#{tag}' for tag in tags)
 
     def clean_favorite_game_tags(self):
-        raw_tags = self.cleaned_data.get('favorite_game_tags', '')
-        pieces = raw_tags.replace(',', ' ').split()
+        raw_tags = self.cleaned_data.get('favorite_game_tags', '').strip()
+        if '#' in raw_tags:
+            pieces = []
+            for chunk in re.split(r'(?=#)', raw_tags):
+                pieces.extend(chunk.split(','))
+        else:
+            pieces = raw_tags.split(',')
         tags = []
 
         for piece in pieces:
-            tag = piece.strip().lstrip('#').strip()
+            tag = re.sub(r'\s+', ' ', piece.strip().lstrip('#')).strip()
             if not tag:
                 continue
-            if len(tag) > 30:
-                raise forms.ValidationError('태그 하나는 30자 이하로 입력해주세요.')
+            if len(tag) > 80:
+                raise forms.ValidationError('태그 하나는 80자 이하로 입력해주세요.')
             if tag not in tags:
                 tags.append(tag)
 

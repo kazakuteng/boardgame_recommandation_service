@@ -9,4 +9,4 @@ class User(AbstractUser):
 
     @property
     def favorite_game_tag_list(self):
-        return [tag for tag in self.favorite_game_tags.split(',') if tag]
+        return [tag.strip() for tag in self.favorite_game_tags.split(',') if tag.strip()]
