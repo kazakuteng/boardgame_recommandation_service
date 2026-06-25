@@ -2,6 +2,7 @@ import json
 import os
 import re
 import html
+import time
 import xml.etree.ElementTree as ET
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 import requests
@@ -587,25 +588,45 @@ def _raise_for_gms_status(response):
     raise RuntimeError(f"GMS HTTP {response.status_code}: {body}")
 
 
-def _cache_bgg_image(boardgame):
-    if boardgame.thumbnail_url or boardgame.image_url:
-        return boardgame.thumbnail_url or boardgame.image_url
+def _valid_boardgame_image_url(value):
+    url = str(value or '').strip()
+    return bool(url and url != BOARDGAME_FALLBACK_IMAGE_URL)
+
+
+def _boardgame_cached_image(boardgame):
+    if _valid_boardgame_image_url(boardgame.thumbnail_url):
+        return boardgame.thumbnail_url
+    if _valid_boardgame_image_url(boardgame.image_url):
+        return boardgame.image_url
+    return ""
+
+
+def _cache_bgg_image(boardgame, force=False):
+    cached_image = _boardgame_cached_image(boardgame)
+    if cached_image and not force:
+        return cached_image
 
     import xml.etree.ElementTree as ET
 
     try:
-        response = _bgg_xml_get(
-            f"https://boardgamegeek.com/xmlapi2/thing?id={boardgame.game_id}",
-            timeout=5,
-        )
-        if response.status_code == 202:
-            return ""
+        response = None
+        for attempt in range(3):
+            response = _bgg_xml_get(
+                f"https://boardgamegeek.com/xmlapi2/thing?id={boardgame.game_id}",
+                timeout=8,
+            )
+            if response.status_code != 202:
+                break
+            time.sleep(1 + attempt)
+
+        if response is None or response.status_code == 202:
+            return cached_image
         response.raise_for_status()
 
         root = ET.fromstring(response.content)
         item = root.find("item")
         if item is None:
-            return ""
+            return cached_image
 
         thumbnail = item.findtext("thumbnail", default="").strip()
         image = item.findtext("image", default="").strip()
@@ -621,8 +642,7 @@ def _cache_bgg_image(boardgame):
 
 def _recommendation_item(detail, reason):
     image_url = (
-        detail.boardgame.thumbnail_url
-        or detail.boardgame.image_url
+        _boardgame_cached_image(detail.boardgame)
         or _cache_bgg_image(detail.boardgame)
         or BOARDGAME_FALLBACK_IMAGE_URL
     )
@@ -1589,8 +1609,8 @@ def details_by_title(request):
         if game:
             game.view_count += 1
             game.save(update_fields=['view_count'])
-            if not (game.thumbnail_url or game.image_url):
-                _cache_bgg_image(game)
+            if not _boardgame_cached_image(game):
+                _cache_bgg_image(game, force=True)
             details = GameDetails.objects.filter(boardgame=game).first()
             if details:
                 details_data = GameDetailsSerializer(details).data
@@ -1628,8 +1648,8 @@ def boardgame_detail(request, game_id):
         game = BoardGames.objects.get(game_id=game_id)
         game.view_count += 1
         game.save(update_fields=['view_count'])
-        if not (game.thumbnail_url or game.image_url):
-            _cache_bgg_image(game)
+        if not _boardgame_cached_image(game):
+            _cache_bgg_image(game, force=True)
         
         details = GameDetails.objects.filter(boardgame=game)
         if details.exists():

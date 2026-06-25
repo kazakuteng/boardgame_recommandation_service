@@ -603,16 +603,16 @@
                 ></iframe>
                 <span v-else>영상 없음</span>
               </div>
+              <a
+                v-if="gameModal.youtubeVideoId"
+                class="btn btn-red youtube-open-link"
+                :href="`https://www.youtube.com/watch?v=${gameModal.youtubeVideoId}`"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <i class="fa-brands fa-youtube"></i> Open YouTube
+              </a>
             </section>
-            <a
-              v-if="gameModal.youtubeVideoId"
-              class="btn btn-red youtube-open-link"
-              :href="`https://www.youtube.com/watch?v=${gameModal.youtubeVideoId}`"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <i class="fa-brands fa-youtube"></i> Open YouTube
-            </a>
           </div>
 
         <div class="community-share-box" style="margin-top: 16px; padding: 15px; background: var(--box-bg); border-radius: 8px;">
@@ -927,6 +927,15 @@ function detailImageUrl(details) {
     || details?.boardgame?.image_url
     || ''
   )
+}
+
+function isUsableImageUrl(url) {
+  const value = String(url || '').trim()
+  return Boolean(value && !value.includes('boardgame_fallback'))
+}
+
+function hasCachedYoutubeVideo(cached) {
+  return Boolean(String(cached?.youtubeVideoId || '').trim())
 }
 
 function normalizeRuleSummary(value) {
@@ -1584,7 +1593,7 @@ async function openGameModal(gameId, title) {
 async function fetchGameSmartGuide(gameId) {
   const cacheKey = guideIdKey(gameId)
   const cached = getCachedGuide(cacheKey)
-  if (applyCachedGuide(cached)) {
+  if (applyCachedGuide(cached) && hasCachedYoutubeVideo(cached)) {
     return
   }
 
@@ -1631,7 +1640,14 @@ async function openAiRecommendModal(title, options = {}) {
   try {
     const cacheKey = guideTitleKey(title)
     const cached = getCachedGuide(cacheKey)
-    if (applyCachedGuide(cached, { includeDetails: true })) {
+    const usedCachedGuide = applyCachedGuide(cached, { includeDetails: true })
+    const cachedImage = detailImageUrl(cached?.details) || gameModal.imageUrl
+    if (
+      usedCachedGuide
+      && cached?.details
+      && isUsableImageUrl(cachedImage)
+      && hasCachedYoutubeVideo(cached)
+    ) {
       updateRecentViewedGameImage(modalTitle, gameModal.imageUrl)
       return
     }
