@@ -119,7 +119,7 @@
         <!-- 6. 순서 뽑기 -->
         <div class="map-tile tile-tool-turn" @click="openToolModal('turn')">
           <div class="tile-content tool-content">
-            <div class="tool-emoji">🎲</div>
+            <div class="tool-emoji">🪜</div>
             <h3>순서 뽑기</h3>
           </div>
         </div>
@@ -1000,8 +1000,7 @@ function refreshRecommendations() {
   submitRecommend({ excludeCurrent: true })
 }
 
-function loadRecentRecommendations() {
-
+function loadRecentViewedGames() {
   try {
     recentViewedGames.value = JSON.parse(localStorage.getItem('recent_viewed_games') || '[]')
   } catch {
