@@ -781,7 +781,7 @@ def _extract_json_object(text):
     return parsed if isinstance(parsed, dict) else {}
 
 
-def _as_short_list(value, limit=4):
+def _as_short_list(value, limit=4, item_char_limit=180):
     if isinstance(value, str):
         parts = re.split(r'[,/|·]+', value)
     elif isinstance(value, list):
@@ -794,7 +794,7 @@ def _as_short_list(value, limit=4):
         text = re.sub(r'\s+', ' ', str(item or '')).strip()
         text = re.sub(r"[\U0001F300-\U0001FAFF\u2600-\u27BF]", "", text).strip()
         if text and text not in cleaned:
-            cleaned.append(text[:32])
+            cleaned.append(text[:item_char_limit])
         if len(cleaned) >= limit:
             break
     return cleaned
@@ -834,11 +834,20 @@ def _normalize_rule_summary_payload(payload, fallback_title):
         recommendation_reason = f"{fallback_title}의 핵심 재미를 짧게 파악하기 좋습니다."
 
     return {
-        "theme_intro": theme_intro[:120],
-        "objective": objective[:80],
+        "theme_intro": theme_intro[:240],
+        "objective": objective[:180],
         "flow": flow,
-        "recommendation_reason": recommendation_reason[:120],
+        "recommendation_reason": recommendation_reason[:240],
     }
+
+
+def _looks_truncated_rule_summary_payload(payload):
+    if not isinstance(payload, dict):
+        return False
+    flow = payload.get("flow")
+    if not isinstance(flow, list):
+        return False
+    return any(isinstance(item, str) and len(item.strip()) == 32 for item in flow)
 
 
 def _rule_summary_to_text(payload):
@@ -856,7 +865,10 @@ def _stored_rule_summary(rule_summary, fallback_title):
         return "", None
 
     try:
-        payload = _normalize_rule_summary_payload(json.loads(text), fallback_title)
+        raw_payload = json.loads(text)
+        if os.environ.get('GMS_KEY', '') and _looks_truncated_rule_summary_payload(raw_payload):
+            return "", None
+        payload = _normalize_rule_summary_payload(raw_payload, fallback_title)
         return _rule_summary_to_text(payload), payload
     except (TypeError, ValueError, json.JSONDecodeError):
         return _clean_rule_summary(text), None
