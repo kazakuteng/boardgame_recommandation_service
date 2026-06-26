@@ -906,7 +906,7 @@ const gameModal = reactive({
 const modalFeedbackTitle = computed(() => gameModal.title.replace(' (AI 추천)', '').trim())
 const RECENT_RECOMMENDATIONS_KEY = 'boardgame_recent_recommendations'
 const GAME_GUIDE_CACHE_KEY = 'boardgame_guide_cache'
-const GAME_GUIDE_CACHE_VERSION = 2
+const GAME_GUIDE_CACHE_VERSION = 3
 
 function displayGameTitle(item) {
   return item?.display_title || item?.korean_title || item?.title || ''
